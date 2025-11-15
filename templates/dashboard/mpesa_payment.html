@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}M-Pesa Payment - SignalPro{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center py-8 px-3 sm:px-4 lg:px-8">
+    <div class="max-w-md w-full space-y-6 sm:space-y-8">
+        <div class="bg-bitget-card rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+            <!-- Header -->
+            <div class="text-center mb-6 sm:mb-8">
+                <div class="mx-auto flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-green-100 mb-3 sm:mb-4">
+                    <i class="fas fa-mobile-alt text-green-600 text-lg sm:text-xl"></i>
+                </div>
+                <h2 class="text-xl sm:text-2xl font-bold text-white">M-Pesa Payment</h2>
+                <p class="text-gray-400 mt-1 sm:mt-2 text-sm sm:text-base">Complete payment using M-Pesa</p>
+            </div>
+
+            <!-- Signal Info -->
+            <div class="bg-gray-800 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+                <h3 class="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-3">Signal Details</h3>
+                <div class="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+                    <div class="text-gray-400">Symbol:</div>
+                    <div class="text-white font-semibold">{{ transaction.signal.symbol }}</div>
+                    
+                    <div class="text-gray-400">Type:</div>
+                    <div class="font-semibold {% if transaction.signal.signal_type == 'BUY' %}text-green-400{% else %}text-red-400{% endif %}">
+                        {{ transaction.signal.signal_type }}
+                    </div>
+                    
+                    <div class="text-gray-400">Amount:</div>
+                    <div class="text-white font-semibold">${{ transaction.amount }}</div>
+
+                    <div class="text-gray-400">Status:</div>
+                    <div class="font-semibold {% if transaction.status == 'COMPLETED' %}text-green-400{% else %}text-yellow-400{% endif %}">
+                        {{ transaction.status }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Development Mode Notice -->
+            {% if debug %}
+            <div class="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+                <div class="flex items-start">
+                    <i class="fas fa-flask text-blue-400 mr-2 sm:mr-3 mt-0.5"></i>
+                    <div>
+                        <h4 class="text-blue-200 font-semibold text-sm sm:text-base">Development Mode</h4>
+                        <p class="text-blue-100 text-xs sm:text-sm mt-1">
+                            M-Pesa payments are simulated in development. Use the manual confirmation below.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- M-Pesa Form -->
+            <form method="POST">
+                {% csrf_token %}
+                
+                <div class="mb-4 sm:mb-6">
+                    <label for="phone_number" class="block text-sm font-medium text-gray-300 mb-2">
+                        M-Pesa Phone Number
+                    </label>
+                    <input type="tel" 
+                           name="phone_number" 
+                           id="phone_number"
+                           class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200 text-sm sm:text-base"
+                           placeholder="07XXXXXXXX or 2547XXXXXXXX"
+                           required
+                           pattern="[0-9+]{10,13}">
+                    <p class="text-xs text-gray-500 mt-1">Enter your M-Pesa registered phone number</p>
+                </div>
+
+                <!-- Instructions -->
+                <div class="bg-yellow-900 bg-opacity-30 border border-yellow-700 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+                    <h4 class="text-yellow-200 font-semibold mb-2 text-sm sm:text-base">Payment Instructions:</h4>
+                    <ol class="text-yellow-100 text-xs sm:text-sm list-decimal list-inside space-y-1">
+                        <li>Enter your M-Pesa phone number</li>
+                        <li>Click "Pay with M-Pesa"</li>
+                        <li>Check your phone for STK Push prompt</li>
+                        <li>Enter your M-Pesa PIN to complete payment</li>
+                    </ol>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" 
+                        class="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-semibold transition duration-200 flex items-center justify-center mb-3 sm:mb-4 text-sm sm:text-base">
+                    <i class="fas fa-mobile-alt mr-2"></i>Pay with M-Pesa
+                </button>
+
+                <!-- Manual Confirmation for Testing -->
+                {% if debug %}
+                <div class="border-t border-gray-700 pt-3 sm:pt-4">
+                    <a href="{% url 'manual_payment_confirmation' transaction.id %}" 
+                       class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-semibold transition duration-200 flex items-center justify-center text-sm sm:text-base mb-2">
+                        <i class="fas fa-check-circle mr-2"></i>Manual Payment Confirmation
+                    </a>
+                    <p class="text-xs text-gray-400 text-center">
+                        Use this in development to simulate successful payment
+                    </p>
+                </div>
+                {% endif %}
+
+                <!-- Cancel -->
+                <div class="text-center mt-3 sm:mt-4">
+                    <a href="{% url 'purchase_signal' transaction.signal.id %}" 
+                       class="text-gray-400 hover:text-white transition duration-200 text-sm sm:text-base">
+                        Cancel Payment
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Status - SignalPro{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <div class="bg-bitget-card rounded-2xl shadow-xl p-8 text-center">
+            {% if transaction.status == 'COMPLETED' %}
+                <!-- Success -->
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                    <i class="fas fa-check text-green-600 text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">Payment Successful!</h2>
+                <p class="text-gray-400 mb-6">Your payment has been processed successfully.</p>
+                <a href="{% url 'signal_detail' transaction.signal.id %}" 
+                   class="btn-primary text-white py-3 px-6 rounded-lg font-semibold transition duration-200 inline-block">
+                    View Signal Details
+                </a>
+            
+            {% elif transaction.status == 'PENDING' %}
+                <!-- Pending -->
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 mb-4">
+                    <i class="fas fa-clock text-yellow-600 text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">Payment Pending</h2>
+                <p class="text-gray-400 mb-4">Waiting for payment confirmation...</p>
+                <div class="animate-pulse text-bitget-primary mb-6">
+                    <i class="fas fa-sync-alt fa-spin text-2xl"></i>
+                </div>
+                <p class="text-sm text-gray-500 mb-4">Please check your phone and complete the payment.</p>
+                <p class="text-xs text-gray-400">This page will update automatically when payment is confirmed.</p>
+            
+            {% elif transaction.status == 'CANCELLED' %}
+                <!-- Cancelled -->
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                    <i class="fas fa-times text-red-600 text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">Payment Cancelled</h2>
+                <p class="text-gray-400 mb-6">Your payment was cancelled.</p>
+                <a href="{% url 'purchase_signal' transaction.signal.id %}" 
+                   class="btn-primary text-white py-3 px-6 rounded-lg font-semibold transition duration-200 inline-block">
+                    Try Again
+                </a>
+            
+            {% else %}
+                <!-- Failed -->
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                    <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">Payment Failed</h2>
+                <p class="text-gray-400 mb-6">There was an issue processing your payment.</p>
+                <a href="{% url 'purchase_signal' transaction.signal.id %}" 
+                   class="btn-primary text-white py-3 px-6 rounded-lg font-semibold transition duration-200 inline-block">
+                    Try Again
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if transaction.status == 'PENDING' %}
+<script>
+// Auto-refresh the page every 10 seconds to check payment status
+setTimeout(function() {
+    window.location.reload();
+}, 10000);
+</script>
+{% endif %}
+{% endblock %}

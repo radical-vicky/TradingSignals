@@ -1,0 +1,467 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}My Profile - SignalPro{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+    <!-- Header -->
+    <div class="mb-6 sm:mb-8">
+        <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">My Profile</h1>
+        <p class="text-gray-400 text-sm sm:text-base">Manage your account settings and view your purchased signals</p>
+    </div>
+
+    <!-- Trader Status Banner -->
+    {% if user.userprofile.is_trader %}
+    <div class="bg-gradient-to-r from-green-500/20 to-emerald-600/20 border border-green-500/30 rounded-2xl p-6 mb-6 sm:mb-8">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mr-4">
+                    <i class="fas fa-user-tie text-white text-lg"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white">Verified Trader</h3>
+                    <p class="text-green-400">You are approved to host live trading sessions</p>
+                </div>
+            </div>
+            <a href="{% url 'create_live_session' %}" class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105">
+                <i class="fas fa-plus mr-2"></i>Create Session
+            </a>
+        </div>
+    </div>
+    {% elif user.userprofile.trader_application_status == 'PENDING' %}
+    <div class="bg-gradient-to-r from-yellow-500/20 to-amber-600/20 border border-yellow-500/30 rounded-2xl p-6 mb-6 sm:mb-8">
+        <div class="flex items-center">
+            <div class="w-12 h-12 bg-yellow-500 rounded-xl flex items-center justify-center mr-4">
+                <i class="fas fa-clock text-white text-lg"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-white">Trader Application Pending</h3>
+                <p class="text-yellow-400">Your application is under review. We'll notify you once it's processed.</p>
+            </div>
+        </div>
+    </div>
+    {% elif user.userprofile.trader_application_status == 'REJECTED' %}
+    <div class="bg-gradient-to-r from-red-500/20 to-pink-600/20 border border-red-500/30 rounded-2xl p-6 mb-6 sm:mb-8">
+        <div class="flex items-center">
+            <div class="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center mr-4">
+                <i class="fas fa-times text-white text-lg"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-white">Trader Application Rejected</h3>
+                <p class="text-red-400">{{ user.userprofile.trader_application_feedback|default:"Please review our requirements and apply again." }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+        <!-- Profile Form & Picture -->
+        <div class="lg:col-span-2">
+            <div class="bg-bitget-card rounded-2xl shadow-xl p-4 sm:p-6">
+                <h2 class="text-xl font-semibold mb-4 sm:mb-6 text-white">Profile Information</h2>
+                
+                <!-- Profile Picture Section -->
+                <div class="flex flex-col sm:flex-row items-center mb-6 sm:mb-8">
+                    <div class="relative mb-4 sm:mb-0 sm:mr-6">
+                        <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gray-800 border-2 border-bitget-primary flex items-center justify-center">
+                            {% if user.userprofile.profile_picture %}
+                                <img id="profile-preview" src="{{ user.userprofile.profile_picture.url }}" alt="Profile Picture" class="w-full h-full object-cover">
+                            {% else %}
+                                <div id="profile-preview" class="w-full h-full flex items-center justify-center bg-gray-700">
+                                    <i class="fas fa-user text-gray-400 text-2xl sm:text-4xl"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <label for="profile-picture-input" class="absolute bottom-0 right-0 bg-bitget-primary text-white p-2 rounded-full cursor-pointer hover:bg-teal-600 transition duration-200">
+                            <i class="fas fa-camera text-sm"></i>
+                        </label>
+                        <input type="file" id="profile-picture-input" name="profile_picture" accept="image/*" class="hidden">
+                    </div>
+                    <div class="text-center sm:text-left">
+                        <h3 class="text-lg sm:text-xl font-bold text-white">{{ user.username }}</h3>
+                        <p class="text-gray-400 text-sm sm:text-base">{{ user.email }}</p>
+                        <div class="mt-2">
+                            {% if user.userprofile.is_trader %}
+                            <span class="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-semibold">
+                                <i class="fas fa-check mr-1"></i>Verified Trader
+                            </span>
+                            {% else %}
+                            <span class="bg-gray-600 text-white text-xs px-3 py-1 rounded-full font-semibold">
+                                <i class="fas fa-user mr-1"></i>Standard User
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <form method="POST" id="profile-form" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                    <div class="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg mb-6">
+                        {% for error in form.non_field_errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                        <!-- Username (readonly) -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                                Username
+                            </label>
+                            <input type="text" 
+                                   value="{{ user.username }}" 
+                                   class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-400"
+                                   readonly>
+                            <p class="text-xs text-gray-500 mt-1">Username cannot be changed</p>
+                        </div>
+
+                        <!-- Email (readonly) -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                                Email
+                            </label>
+                            <input type="email" 
+                                   value="{{ user.email }}" 
+                                   class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-400"
+                                   readonly>
+                            <p class="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                        </div>
+
+                        <!-- M-Pesa Number -->
+                        <div>
+                            <label for="id_mpesa_number" class="block text-sm font-medium text-gray-300 mb-2">
+                                M-Pesa Number
+                            </label>
+                            <input type="text" 
+                                   name="mpesa_number" 
+                                   id="id_mpesa_number"
+                                   value="{{ user.userprofile.mpesa_number|default:'' }}"
+                                   class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200"
+                                   placeholder="2547XXXXXXXX">
+                            {% if form.mpesa_number.errors %}
+                                <div class="text-red-400 text-sm mt-1">{{ form.mpesa_number.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- PayPal Email -->
+                        <div>
+                            <label for="id_paypal_email" class="block text-sm font-medium text-gray-300 mb-2">
+                                PayPal Email
+                            </label>
+                            <input type="email" 
+                                   name="paypal_email" 
+                                   id="id_paypal_email"
+                                   value="{{ user.userprofile.paypal_email|default:'' }}"
+                                   class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200"
+                                   placeholder="your-email@example.com">
+                            {% if form.paypal_email.errors %}
+                                <div class="text-red-400 text-sm mt-1">{{ form.paypal_email.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Trader Application Fields (only show if not already a trader) -->
+                    {% if not user.userprofile.is_trader %}
+                    <div class="mt-6 pt-6 border-t border-gray-700">
+                        <h3 class="text-lg font-semibold text-white mb-4">Become a Trader</h3>
+                        
+                        <!-- Trading Experience -->
+                        <div class="mb-4">
+                            <label for="id_trader_experience" class="block text-sm font-medium text-gray-300 mb-2">
+                                Trading Experience
+                            </label>
+                            <input type="text" 
+                                   name="trader_experience" 
+                                   id="id_trader_experience"
+                                   value="{{ user.userprofile.trader_experience|default:'' }}"
+                                   class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200"
+                                   placeholder="e.g., 5+ years in Forex Trading">
+                            {% if form.trader_experience.errors %}
+                                <div class="text-red-400 text-sm mt-1">{{ form.trader_experience.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Specialization -->
+                        <div class="mb-4">
+                            <label for="id_trader_specialization" class="block text-sm font-medium text-gray-300 mb-2">
+                                Trading Specialization
+                            </label>
+                            <input type="text" 
+                                   name="trader_specialization" 
+                                   id="id_trader_specialization"
+                                   value="{{ user.userprofile.trader_specialization|default:'' }}"
+                                   class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200"
+                                   placeholder="e.g., Forex, Crypto, Stocks, Options">
+                            {% if form.trader_specialization.errors %}
+                                <div class="text-red-400 text-sm mt-1">{{ form.trader_specialization.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Trader Bio -->
+                        <div class="mb-4">
+                            <label for="id_trader_bio" class="block text-sm font-medium text-gray-300 mb-2">
+                                Trading Biography
+                            </label>
+                            <textarea name="trader_bio" 
+                                      id="id_trader_bio"
+                                      rows="4"
+                                      class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200 resize-none"
+                                      placeholder="Tell us about your trading experience, strategies, and why you want to become a trader on our platform...">{{ user.userprofile.trader_bio|default:'' }}</textarea>
+                            {% if form.trader_bio.errors %}
+                                <div class="text-red-400 text-sm mt-1">{{ form.trader_bio.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Trader Application Checkbox -->
+                        <div class="flex items-center mb-4">
+                            <input type="checkbox" 
+                                   name="apply_as_trader" 
+                                   id="id_apply_as_trader"
+                                   class="w-4 h-4 text-bitget-primary bg-gray-800 border-gray-700 rounded focus:ring-bitget-primary focus:ring-2">
+                            <label for="id_apply_as_trader" class="ml-2 text-sm font-medium text-gray-300">
+                                I want to apply as a trader and host live sessions
+                            </label>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Submit Button -->
+                    <div class="mt-6 sm:mt-8">
+                        <button type="submit" 
+                                class="w-full btn-primary text-white py-3 px-6 sm:px-8 rounded-lg font-semibold transition duration-200">
+                            <i class="fas fa-save mr-2"></i>
+                            {% if not user.userprofile.is_trader and user.userprofile.trader_application_status != 'PENDING' %}
+                                Update Profile & Apply as Trader
+                            {% else %}
+                                Update Profile
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Purchased Signals & Account Stats -->
+        <div class="lg:col-span-1">
+            <div class="bg-bitget-card rounded-2xl shadow-xl p-4 sm:p-6 mb-6 sm:mb-0">
+                <h2 class="text-xl font-semibold mb-4 sm:mb-6 text-white">My Signals</h2>
+                
+                {% if purchased_signals %}
+                    <div class="space-y-3 sm:space-y-4 max-h-80 overflow-y-auto pr-2">
+                        {% for purchase in purchased_signals %}
+                        <div class="bg-gray-800 rounded-lg p-3 sm:p-4 border-l-4 
+                                    {% if purchase.signal.signal_type == 'BUY' %}border-green-500{% else %}border-red-500{% endif %}">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="font-semibold text-white text-sm sm:text-base">{{ purchase.signal.symbol }}</span>
+                                <span class="text-xs px-2 py-1 rounded 
+                                            {% if purchase.signal.status == 'OPEN' %}bg-green-600{% else %}bg-blue-600{% endif %}">
+                                    {{ purchase.signal.status }}
+                                </span>
+                            </div>
+                            <div class="text-xs sm:text-sm text-gray-400 mb-1">
+                                Type: 
+                                <span class="{% if purchase.signal.signal_type == 'BUY' %}text-green-400{% else %}text-red-400{% endif %}">
+                                    {{ purchase.signal.signal_type }}
+                                </span>
+                            </div>
+                            <div class="text-xs sm:text-sm text-gray-400 mb-1">
+                                Entry: ${{ purchase.signal.entry_price }}
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                Purchased: {{ purchase.purchased_at|date:"M d, Y" }}
+                            </div>
+                            <a href="{% url 'signal_detail' purchase.signal.id %}" 
+                               class="block mt-2 text-bitget-primary hover:text-teal-400 text-xs sm:text-sm font-semibold transition duration-200">
+                                View Details →
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- View All Signals Link -->
+                    <div class="mt-4 sm:mt-6 text-center">
+                        <a href="{% url 'signal_list' %}" 
+                           class="text-bitget-primary hover:text-teal-400 font-semibold transition duration-200 text-sm sm:text-base">
+                            <i class="fas fa-signal mr-2"></i>View All Signals
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-6 sm:py-8">
+                        <i class="fas fa-inbox text-3xl sm:text-4xl text-gray-600 mb-3 sm:mb-4"></i>
+                        <p class="text-gray-400 mb-4 text-sm sm:text-base">You haven't purchased any signals yet.</p>
+                        <a href="{% url 'signal_list' %}" 
+                           class="btn-primary text-white py-2 px-4 sm:px-6 rounded-lg font-semibold transition duration-200 inline-block text-sm sm:text-base">
+                            <i class="fas fa-shopping-cart mr-2"></i>Browse Signals
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Account Stats -->
+            <div class="bg-bitget-card rounded-2xl shadow-xl p-4 sm:p-6 mt-4 sm:mt-6">
+                <h2 class="text-xl font-semibold mb-4 text-white">Account Stats</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400 text-sm sm:text-base">Signals Purchased:</span>
+                        <span class="text-white font-semibold text-sm sm:text-base">{{ purchased_signals|length }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400 text-sm sm:text-base">Member Since:</span>
+                        <span class="text-white font-semibold text-sm sm:text-base">{{ user.date_joined|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400 text-sm sm:text-base">Last Login:</span>
+                        <span class="text-white font-semibold text-sm sm:text-base">{{ user.last_login|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400 text-sm sm:text-base">Trader Status:</span>
+                        <span class="font-semibold text-sm sm:text-base 
+                            {% if user.userprofile.is_trader %}text-green-400
+                            {% elif user.userprofile.trader_application_status == 'PENDING' %}text-yellow-400
+                            {% elif user.userprofile.trader_application_status == 'REJECTED' %}text-red-400
+                            {% else %}text-gray-400{% endif %}">
+                            {% if user.userprofile.is_trader %}Verified
+                            {% elif user.userprofile.trader_application_status == 'PENDING' %}Pending
+                            {% elif user.userprofile.trader_application_status == 'REJECTED' %}Rejected
+                            {% else %}Not Applied{% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Apply as Trader CTA -->
+                {% if not user.userprofile.is_trader and user.userprofile.trader_application_status != 'PENDING' %}
+                <div class="mt-6 pt-4 border-t border-gray-700">
+                    <p class="text-gray-400 text-sm mb-3">Want to host live trading sessions?</p>
+                    <button onclick="scrollToTraderSection()" class="w-full bg-gradient-to-r from-bitget-primary to-teal-600 hover:from-teal-600 hover:to-bitget-primary text-white font-semibold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105">
+                        <i class="fas fa-user-tie mr-2"></i>Apply as Trader
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Profile Picture Upload Modal -->
+<div id="upload-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+    <div class="bg-bitget-card rounded-2xl p-6 max-w-md w-full mx-4">
+        <h3 class="text-xl font-bold text-white mb-4">Upload Profile Picture</h3>
+        <div class="mb-4">
+            <div class="w-32 h-32 mx-auto rounded-full overflow-hidden bg-gray-800 border-2 border-bitget-primary flex items-center justify-center">
+                <img id="modal-preview" src="" alt="Preview" class="w-full h-full object-cover hidden">
+                <div id="modal-placeholder" class="w-full h-full flex items-center justify-center bg-gray-700">
+                    <i class="fas fa-user text-gray-400 text-3xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="flex justify-between space-x-4">
+            <button id="cancel-upload" class="flex-1 bg-gray-700 text-white py-2 px-4 rounded-lg font-semibold transition duration-200 hover:bg-gray-600">
+                Cancel
+            </button>
+            <button id="confirm-upload" class="flex-1 btn-primary text-white py-2 px-4 rounded-lg font-semibold transition duration-200">
+                Upload
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function scrollToTraderSection() {
+    document.getElementById('id_trader_experience').scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+    });
+    document.getElementById('id_trader_experience').focus();
+}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Keep your existing JavaScript for profile picture upload -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const profilePictureInput = document.getElementById('profile-picture-input');
+    const profilePreview = document.getElementById('profile-preview');
+    const uploadModal = document.getElementById('upload-modal');
+    const modalPreview = document.getElementById('modal-preview');
+    const modalPlaceholder = document.getElementById('modal-placeholder');
+    const cancelUpload = document.getElementById('cancel-upload');
+    const confirmUpload = document.getElementById('confirm-upload');
+    const profileForm = document.getElementById('profile-form');
+    
+    let selectedFile = null;
+    
+    // Open file selector when camera icon is clicked
+    profilePictureInput.addEventListener('change', function(e) {
+        if (this.files && this.files[0]) {
+            selectedFile = this.files[0];
+            
+            // Show preview in modal
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                modalPreview.src = e.target.result;
+                modalPreview.classList.remove('hidden');
+                modalPlaceholder.classList.add('hidden');
+            }
+            reader.readAsDataURL(selectedFile);
+            
+            // Show modal
+            uploadModal.classList.remove('hidden');
+        }
+    });
+    
+    // Cancel upload
+    cancelUpload.addEventListener('click', function() {
+        uploadModal.classList.add('hidden');
+        profilePictureInput.value = '';
+        selectedFile = null;
+    });
+    
+    // Confirm upload
+    confirmUpload.addEventListener('click', function() {
+        if (selectedFile) {
+            // Update preview on profile page
+            profilePreview.innerHTML = '';
+            const img = document.createElement('img');
+            img.src = modalPreview.src;
+            img.alt = 'Profile Picture';
+            img.className = 'w-full h-full object-cover';
+            profilePreview.appendChild(img);
+            
+            // Create a FormData object and append the file
+            const formData = new FormData(profileForm);
+            formData.append('profile_picture', selectedFile);
+            
+            // Submit the form via AJAX
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Success message or redirect
+                    window.location.reload();
+                } else {
+                    alert('Error uploading profile picture');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error uploading profile picture');
+            });
+            
+            // Hide modal
+            uploadModal.classList.add('hidden');
+        }
+    });
+});
+</script>
+{% endblock %}

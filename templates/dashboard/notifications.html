@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Notifications - SignalPro{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+    <!-- Header -->
+    <div class="mb-6 sm:mb-8">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">Notifications</h1>
+                <p class="text-gray-400 text-sm sm:text-base">Manage your alerts and notifications</p>
+            </div>
+            <div class="mt-4 sm:mt-0 flex space-x-3">
+                {% if unread_notifications_count > 0 %}
+                <form method="POST" action="{% url 'mark_all_notifications_read' %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-secondary text-white py-2 px-4 rounded-lg font-semibold transition duration-200 text-sm">
+                        <i class="fas fa-check-double mr-2"></i>Mark All Read
+                    </button>
+                </form>
+                {% endif %}
+                <form method="GET" class="inline">
+                    <button type="submit" name="clear_filters" class="btn-secondary text-white py-2 px-4 rounded-lg font-semibold transition duration-200 text-sm">
+                        <i class="fas fa-times mr-2"></i>Clear Filters
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8">
+        <!-- Filters Sidebar -->
+        <div class="lg:col-span-1">
+            <div class="bg-bitget-card rounded-2xl shadow-xl p-4 sm:p-6">
+                <h3 class="text-lg font-semibold text-white mb-4">Filters</h3>
+                
+                <form method="GET" class="space-y-4">
+                    <!-- Notification Type -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Type</label>
+                        <select name="notification_type" class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent text-white">
+                            <option value="">All Types</option>
+                            <option value="INFO" {% if request.GET.notification_type == 'INFO' %}selected{% endif %}>Information</option>
+                            <option value="SUCCESS" {% if request.GET.notification_type == 'SUCCESS' %}selected{% endif %}>Success</option>
+                            <option value="WARNING" {% if request.GET.notification_type == 'WARNING' %}selected{% endif %}>Warning</option>
+                            <option value="ERROR" {% if request.GET.notification_type == 'ERROR' %}selected{% endif %}>Error</option>
+                            <option value="ALERT" {% if request.GET.notification_type == 'ALERT' %}selected{% endif %}>New Alert</option>
+                        </select>
+                    </div>
+
+                    <!-- Status -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                        <select name="status" class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent text-white">
+                            <option value="">All Status</option>
+                            <option value="unread" {% if request.GET.status == 'unread' %}selected{% endif %}>Unread Only</option>
+                            <option value="read" {% if request.GET.status == 'read' %}selected{% endif %}>Read Only</option>
+                        </select>
+                    </div>
+
+                    <!-- Date Range -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Date From</label>
+                        <input type="date" name="date_from" value="{{ request.GET.date_from }}" 
+                               class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent text-white">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Date To</label>
+                        <input type="date" name="date_to" value="{{ request.GET.date_to }}" 
+                               class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent text-white">
+                    </div>
+
+                    <button type="submit" class="w-full btn-primary text-white py-2 px-4 rounded-lg font-semibold transition duration-200">
+                        <i class="fas fa-filter mr-2"></i>Apply Filters
+                    </button>
+                </form>
+
+                <!-- Stats -->
+                <div class="mt-6 pt-4 border-t border-gray-700">
+                    <h4 class="text-sm font-semibold text-gray-300 mb-3">Notification Stats</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-400">Total:</span>
+                            <span class="text-white font-semibold">{{ notifications.paginator.count }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-400">Unread:</span>
+                            <span class="text-bitget-primary font-semibold">{{ unread_notifications_count }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-400">Read:</span>
+                            <span class="text-gray-400">{{ notifications.paginator.count|add:unread_notifications_count|add:"-1" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notifications List -->
+        <div class="lg:col-span-3">
+            <div class="bg-bitget-card rounded-2xl shadow-xl p-4 sm:p-6">
+                {% if notifications %}
+                    <div class="space-y-4">
+                        {% for notification in notifications %}
+                        <div class="bg-gray-800 rounded-lg p-4 border-l-4 
+                                    {% if notification.notification_type == 'SUCCESS' %}border-green-500
+                                    {% elif notification.notification_type == 'WARNING' %}border-yellow-500
+                                    {% elif notification.notification_type == 'ERROR' %}border-red-500
+                                    {% elif notification.notification_type == 'ALERT' %}border-bitget-primary
+                                    {% else %}border-blue-500{% endif %}
+                                    {% if not notification.is_read %}bg-gray-750{% endif %}">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <div class="flex items-center mb-2">
+                                        <span class="text-xs px-2 py-1 rounded 
+                                                    {% if notification.notification_type == 'SUCCESS' %}bg-green-600 text-green-100
+                                                    {% elif notification.notification_type == 'WARNING' %}bg-yellow-600 text-yellow-100
+                                                    {% elif notification.notification_type == 'ERROR' %}bg-red-600 text-red-100
+                                                    {% elif notification.notification_type == 'ALERT' %}bg-bitget-primary text-white
+                                                    {% else %}bg-blue-600 text-blue-100{% endif %}">
+                                            {{ notification.get_notification_type_display }}
+                                        </span>
+                                        {% if not notification.is_read %}
+                                        <span class="ml-2 bg-bitget-primary text-white text-xs px-2 py-1 rounded">NEW</span>
+                                        {% endif %}
+                                        <span class="ml-auto text-xs text-gray-500">{{ notification.get_time_ago }}</span>
+                                    </div>
+                                    <h3 class="font-semibold text-white mb-1">{{ notification.title }}</h3>
+                                    <p class="text-gray-300 text-sm mb-3">{{ notification.message }}</p>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs text-gray-500">{{ notification.created_at|date:"M d, Y H:i" }}</span>
+                                        {% if not notification.is_read %}
+                                        <form method="POST" action="{% url 'mark_notification_read' notification.id %}" class="inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="text-bitget-primary hover:text-teal-400 text-xs font-semibold transition duration-200">
+                                                <i class="fas fa-check mr-1"></i>Mark as Read
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if notifications.has_other_pages %}
+                    <div class="mt-6 flex justify-center">
+                        <nav class="flex items-center space-x-2">
+                            {% if notifications.has_previous %}
+                            <a href="?page={{ notifications.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+                               class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 hover:bg-gray-700 transition duration-200">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                            {% endif %}
+
+                            {% for num in notifications.paginator.page_range %}
+                                {% if notifications.number == num %}
+                                <span class="px-3 py-2 bg-bitget-primary border border-bitget-primary rounded-lg text-white">
+                                    {{ num }}
+                                </span>
+                                {% elif num > notifications.number|add:-3 and num < notifications.number|add:3 %}
+                                <a href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+                                   class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 hover:bg-gray-700 transition duration-200">
+                                    {{ num }}
+                                </a>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if notifications.has_next %}
+                            <a href="?page={{ notifications.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+                               class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 hover:bg-gray-700 transition duration-200">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                    {% endif %}
+
+                {% else %}
+                    <!-- Empty State -->
+                    <div class="text-center py-12">
+                        <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gray-800 mb-4">
+                            <i class="fas fa-bell text-gray-400 text-xl"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-white mb-2">No notifications</h3>
+                        <p class="text-gray-400 mb-6">You're all caught up! New notifications will appear here.</p>
+                        <a href="{% url 'signal_list' %}" 
+                           class="btn-primary text-white py-2 px-6 rounded-lg font-semibold transition duration-200 inline-block">
+                            <i class="fas fa-signal mr-2"></i>Browse Signals
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh notifications count every 30 seconds
+    function refreshNotificationsCount() {
+        fetch('{% url "get_notifications_count" %}')
+            .then(response => response.json())
+            .then(data => {
+                // Update the notification badge in the navbar
+                const badge = document.querySelector('.notification-badge');
+                if (badge) {
+                    if (data.count > 0) {
+                        badge.textContent = data.count;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+            })
+            .catch(error => console.error('Error refreshing notifications:', error));
+    }
+
+    // Refresh every 30 seconds
+    setInterval(refreshNotificationsCount, 30000);
+
+    // Add smooth animations for mark as read
+    const markAsReadButtons = document.querySelectorAll('form[action*="mark-notification-read"] button');
+    markAsReadButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            const form = this.closest('form');
+            const notification = form.closest('.bg-gray-800');
+            
+            // Add loading state
+            this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Marking...';
+            this.disabled = true;
+            
+            // Submit via AJAX
+            e.preventDefault();
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update UI
+                    notification.classList.remove('bg-gray-750');
+                    notification.querySelector('.bg-bitget-primary').remove();
+                    form.remove();
+                    
+                    // Update stats
+                    refreshNotificationsCount();
+                }
+            })
+            .catch(error => {
+                console.error('Error marking notification as read:', error);
+                this.innerHTML = '<i class="fas fa-check mr-1"></i>Mark as Read';
+                this.disabled = false;
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

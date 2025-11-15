@@ -1,0 +1,715 @@
+{% extends "base.html" %}
+
+{% block title %}{{ session.title }} - VTradingPro{% endblock %}
+
+{% block extra_css %}
+<style>
+.chat-message {
+    animation: fadeIn 0.3s ease-in;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.participant-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+.trade-idea {
+    border-left: 4px solid #10b981;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
+}
+.session-status-live { border-left: 4px solid #ef4444; }
+.session-status-scheduled { border-left: 4px solid #3b82f6; }
+.session-status-ended { border-left: 4px solid #6b7280; }
+
+/* Custom scrollbar */
+.participant-list::-webkit-scrollbar {
+    width: 4px;
+}
+.participant-list::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.8);
+    border-radius: 2px;
+}
+.participant-list::-webkit-scrollbar-thumb {
+    background: rgba(55, 65, 81, 0.8);
+    border-radius: 2px;
+}
+.participant-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(75, 85, 99, 0.8);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" 
+     x-data="liveSessionApp"
+     data-session-status="{{ session.status }}"
+     data-user-participation="{{ user_participation|yesno:'true,false' }}">
+    <!-- Session Header -->
+    <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl session-status-{{ session.status|lower }}">
+        <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between">
+            <div class="flex-1">
+                <!-- Status Badges -->
+                <div class="flex flex-wrap items-center gap-3 mb-4">
+                    <span class="{% if session.status == 'LIVE' %}bg-red-500{% elif session.status == 'SCHEDULED' %}bg-blue-500{% else %}bg-gray-600{% endif %} text-white text-sm font-semibold px-4 py-2 rounded-full shadow-lg">
+                        <i class="fas {% if session.status == 'LIVE' %}fa-circle animate-pulse{% elif session.status == 'SCHEDULED' %}fa-clock{% else %}fa-check{% endif %} mr-2"></i>
+                        {{ session.get_status_display }}
+                    </span>
+                    <span class="bg-gradient-to-r from-bitget-primary/20 to-teal-600/20 text-bitget-primary text-sm font-semibold px-4 py-2 rounded-full border border-bitget-primary/30">
+                        {{ session.get_session_type_display }}
+                    </span>
+                    {% if not session.is_public %}
+                    <span class="bg-yellow-500/20 text-yellow-400 text-sm font-semibold px-4 py-2 rounded-full border border-yellow-500/30">
+                        <i class="fas fa-lock mr-2"></i>Private Session
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Session Title & Description -->
+                <h1 class="text-3xl lg:text-4xl font-bold text-white mb-4 leading-tight">{{ session.title }}</h1>
+                <p class="text-gray-300 text-lg mb-6 leading-relaxed">{{ session.description }}</p>
+
+                <!-- Session Metadata -->
+                <div class="flex flex-wrap items-center gap-6 text-sm">
+                    <div class="flex items-center text-gray-400">
+                        <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-user text-white text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-400">Hosted by</p>
+                            <p class="text-white font-semibold">{{ session.trader.username }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center text-gray-400">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-users text-white text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-400">Participants</p>
+                            <p class="text-white font-semibold">{{ participants_count }}</p>
+                        </div>
+                    </div>
+                    {% if session.status == 'LIVE' and session.actual_start %}
+                    <div class="flex items-center text-gray-400">
+                        <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-play text-white text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-400">Started</p>
+                            <p class="text-white font-semibold">{{ session.actual_start|time:"H:i" }}</p>
+                        </div>
+                    </div>
+                    {% elif session.status == 'SCHEDULED' %}
+                    <div class="flex items-center text-gray-400">
+                        <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-calendar text-white text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-400">Starts</p>
+                            <p class="text-white font-semibold">{{ session.scheduled_start|date:"M d, Y H:i" }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="mt-6 xl:mt-0 flex flex-col sm:flex-row xl:flex-col gap-3 xl:min-w-80">
+                {% if user_participation %}
+                    {% if session.status == 'LIVE' %}
+                    <a href="{% url 'live_session_detail' session.id %}" class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-4 px-6 rounded-xl flex items-center justify-center transition-all duration-300 transform hover:scale-105 shadow-lg">
+                        <i class="fas fa-play-circle mr-3 text-lg"></i>
+                        <span class="text-lg">Join Session</span>
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'leave_live_session' session.id %}" class="bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white font-semibold py-4 px-6 rounded-xl flex items-center justify-center transition-all duration-300 transform hover:scale-105 border border-gray-600 hover:border-gray-500">
+                        <i class="fas fa-sign-out-alt mr-3"></i>
+                        Leave Session
+                    </a>
+                {% else %}
+                    {% if session.can_join %}
+                    <a href="{% url 'join_live_session' session.id %}" class="bg-gradient-to-r from-bitget-primary to-teal-600 hover:from-teal-600 hover:to-bitget-primary text-white font-semibold py-4 px-6 rounded-xl flex items-center justify-center transition-all duration-300 transform hover:scale-105 shadow-lg">
+                        <i class="fas fa-plus-circle mr-3 text-lg"></i>
+                        <span class="text-lg">Join Session</span>
+                    </a>
+                    {% endif %}
+                {% endif %}
+                
+                {% if user == session.trader %}
+                    {% if session.status == 'SCHEDULED' %}
+                    <a href="{% url 'start_live_session' session.id %}" class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-4 px-6 rounded-xl flex items-center justify-center transition-all duration-300 transform hover:scale-105 shadow-lg">
+                        <i class="fas fa-play mr-3"></i>
+                        Start Session
+                    </a>
+                    {% elif session.status == 'LIVE' %}
+                    <a href="{% url 'end_live_session' session.id %}" class="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-semibold py-4 px-6 rounded-xl flex items-center justify-center transition-all duration-300 transform hover:scale-105 shadow-lg">
+                        <i class="fas fa-stop mr-3"></i>
+                        End Session
+                    </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <!-- Main Content -->
+        <div class="xl:col-span-2 space-y-8">
+            <!-- Video/Audio Stream Section -->
+            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border border-gray-700 shadow-2xl">
+                <div class="aspect-w-16 aspect-h-9 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl flex items-center justify-center border-2 border-gray-700">
+                    {% if session.status == 'LIVE' %}
+                    <div class="text-center p-8">
+                        <div class="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                            <i class="fas fa-broadcast-tower text-white text-2xl"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white mb-3">Live Session in Progress</h3>
+                        <p class="text-gray-400 text-lg">Join now to participate in real-time trading discussion</p>
+                        <div class="mt-6 flex items-center justify-center space-x-4 text-red-400">
+                            <i class="fas fa-circle animate-pulse"></i>
+                            <span class="font-semibold">LIVE STREAM ACTIVE</span>
+                        </div>
+                    </div>
+                    {% elif session.status == 'SCHEDULED' %}
+                    <div class="text-center p-8">
+                        <div class="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-clock text-white text-2xl"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white mb-3">Session Starts Soon</h3>
+                        <p class="text-gray-400 text-lg mb-4">This session is scheduled to begin at:</p>
+                        <div class="bg-gradient-to-r from-blue-500/20 to-cyan-600/20 border border-blue-500/30 rounded-xl p-4 inline-block">
+                            <p class="text-blue-400 font-bold text-xl">{{ session.scheduled_start|date:"M d, Y H:i" }}</p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center p-8">
+                        <div class="w-20 h-20 bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-history text-white text-2xl"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white mb-3">Session Ended</h3>
+                        <p class="text-gray-400 text-lg">This trading session has concluded</p>
+                        <div class="mt-6 bg-gradient-to-r from-gray-600/20 to-gray-700/20 border border-gray-600/30 rounded-xl p-4 inline-block">
+                            <p class="text-gray-400 font-semibold">Recording available soon</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Trade Ideas Section -->
+            {% if trade_ideas %}
+            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border border-gray-700 shadow-2xl">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-2xl font-bold text-white flex items-center">
+                        <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl flex items-center justify-center mr-4">
+                            <i class="fas fa-lightbulb text-white text-lg"></i>
+                        </div>
+                        Trade Ideas
+                    </h3>
+                    <span class="bg-yellow-500/20 text-yellow-400 text-sm font-semibold px-3 py-1 rounded-full">
+                        {{ trade_ideas|length }} Ideas
+                    </span>
+                </div>
+                <div class="space-y-4">
+                    {% for idea in trade_ideas %}
+                    <div class="trade-idea rounded-2xl p-6 border border-gray-700 hover:border-green-500/50 transition-all duration-300">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-3">
+                                <span class="{% if idea.idea_type == 'BUY' %}bg-green-500{% else %}bg-red-500{% endif %} text-white text-sm font-semibold px-4 py-2 rounded-full shadow-lg">
+                                    {{ idea.get_idea_type_display }}
+                                </span>
+                                <strong class="text-white text-xl font-bold">{{ idea.symbol }}</strong>
+                            </div>
+                            <span class="text-gray-400 text-sm">{{ idea.created_at|time:"H:i" }}</span>
+                        </div>
+                        {% if idea.entry_price or idea.target_price or idea.stop_loss %}
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            {% if idea.entry_price %}
+                            <div class="text-center bg-gray-800/50 rounded-xl p-3">
+                                <span class="text-gray-400 text-sm block mb-1">Entry Price</span>
+                                <div class="text-white font-bold text-lg">{{ idea.entry_price }}</div>
+                            </div>
+                            {% endif %}
+                            {% if idea.target_price %}
+                            <div class="text-center bg-green-500/10 rounded-xl p-3 border border-green-500/20">
+                                <span class="text-green-400 text-sm block mb-1">Target Price</span>
+                                <div class="text-green-400 font-bold text-lg">{{ idea.target_price }}</div>
+                            </div>
+                            {% endif %}
+                            {% if idea.stop_loss %}
+                            <div class="text-center bg-red-500/10 rounded-xl p-3 border border-red-500/20">
+                                <span class="text-red-400 text-sm block mb-1">Stop Loss</span>
+                                <div class="text-red-400 font-bold text-lg">{{ idea.stop_loss }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="bg-gray-800/30 rounded-xl p-4">
+                            <p class="text-gray-300 leading-relaxed">{{ idea.rationale }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Live Chat Section -->
+            {% if user_participation and session.status == 'LIVE' %}
+            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border border-gray-700 shadow-2xl">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-2xl font-bold text-white flex items-center">
+                        <div class="w-10 h-10 bg-gradient-to-br from-bitget-primary to-teal-600 rounded-xl flex items-center justify-center mr-4">
+                            <i class="fas fa-comments text-white text-lg"></i>
+                        </div>
+                        Live Chat
+                    </h3>
+                    <span class="bg-green-500/20 text-green-400 text-sm font-semibold px-3 py-1 rounded-full flex items-center">
+                        <i class="fas fa-circle animate-pulse mr-2"></i>
+                        ACTIVE
+                    </span>
+                </div>
+                
+                <!-- Messages Container -->
+                <div id="messagesContainer" class="h-96 overflow-y-auto mb-6 space-y-4 p-4 bg-gray-800/30 rounded-2xl border border-gray-700">
+                    {% for message in messages %}
+                    <div class="chat-message bg-gray-800/50 rounded-xl p-4 border border-gray-700 hover:border-gray-600 transition-all duration-200">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-center space-x-3">
+                                <span class="font-semibold text-white text-sm">{{ message.user.username }}</span>
+                                {% if message.user == session.trader %}
+                                <span class="bg-bitget-primary/20 text-bitget-primary text-xs px-2 py-1 rounded-full">Host</span>
+                                {% endif %}
+                            </div>
+                            <span class="text-xs text-gray-400">{{ message.created_at|time:"H:i" }}</span>
+                        </div>
+                        <p class="text-gray-300 text-sm leading-relaxed">{{ message.content }}</p>
+                        {% if message.message_type != 'TEXT' %}
+                        <span class="inline-block bg-blue-500/20 text-blue-400 text-xs font-semibold px-3 py-1 rounded-full mt-2 border border-blue-500/30">
+                            {{ message.get_message_type_display }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Message Input -->
+                <form id="messageForm" class="flex gap-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="session_id" value="{{ session.id }}">
+                    <div class="flex-1">
+                        <input type="text" name="content" placeholder="Type your message..." 
+                               class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-bitget-primary focus:ring-2 focus:ring-bitget-primary/20 transition-all duration-200"
+                               maxlength="1000" required>
+                    </div>
+                    <select name="message_type" class="bg-gray-800 border border-gray-700 rounded-xl text-white px-4 focus:outline-none focus:border-bitget-primary focus:ring-2 focus:ring-bitget-primary/20">
+                        <option value="TEXT">Text</option>
+                        <option value="QUESTION">Question</option>
+                    </select>
+                    <button type="submit" class="bg-gradient-to-r from-bitget-primary to-teal-600 hover:from-teal-600 hover:to-bitget-primary text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
+
+                <!-- Quick Actions for Traders -->
+                {% if user == session.trader %}
+                <div class="mt-6 pt-6 border-t border-gray-700">
+                    <h4 class="text-lg font-semibold text-white mb-4">Host Controls</h4>
+                    <div class="flex flex-wrap gap-3">
+                        <button @click="showTradeIdeaModal = true" class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-xl flex items-center transition-all duration-300 transform hover:scale-105 shadow-lg">
+                            <i class="fas fa-chart-line mr-2"></i>
+                            New Trade Idea
+                        </button>
+                        <button onclick="sendAnnouncement()" class="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-semibold py-3 px-6 rounded-xl flex items-center transition-all duration-300 transform hover:scale-105 shadow-lg">
+                            <i class="fas fa-bullhorn mr-2"></i>
+                            Make Announcement
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-8">
+            <!-- Participants -->
+            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 border border-gray-700 shadow-2xl">
+                <h3 class="text-xl font-bold text-white mb-4 flex items-center justify-between">
+                    <span class="flex items-center">
+                        <i class="fas fa-users mr-3 text-bitget-primary"></i>
+                        Participants
+                    </span>
+                    <span class="bg-bitget-primary/20 text-bitget-primary text-sm font-semibold px-3 py-1 rounded-full">
+                        {{ participants_count }}
+                    </span>
+                </h3>
+                <div id="participantsList" class="participant-list space-y-3">
+                    {% for participant in session.participants.all %}
+                    {% if participant.is_active %}
+                    <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded-xl border border-gray-700 hover:border-bitget-primary/50 transition-all duration-200">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                            <span class="text-white font-medium">{{ participant.user.username }}</span>
+                        </div>
+                        <span class="text-xs font-semibold px-2 py-1 rounded-full 
+                            {% if participant.role == 'TRADER' %}bg-red-500/20 text-red-400
+                            {% elif participant.role == 'MODERATOR' %}bg-blue-500/20 text-blue-400
+                            {% else %}bg-gray-500/20 text-gray-400{% endif %}">
+                            {{ participant.role|title }}
+                        </span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Session Info -->
+            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 border border-gray-700 shadow-2xl">
+                <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-info-circle mr-3 text-bitget-primary"></i>
+                    Session Details
+                </h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center p-3 bg-gray-800/30 rounded-lg">
+                        <span class="text-gray-400">Status</span>
+                        <span class="{% if session.status == 'LIVE' %}text-red-400{% elif session.status == 'SCHEDULED' %}text-blue-400{% else %}text-gray-400{% endif %} font-semibold">
+                            {{ session.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-800/30 rounded-lg">
+                        <span class="text-gray-400">Type</span>
+                        <span class="text-white font-semibold">{{ session.get_session_type_display }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-800/30 rounded-lg">
+                        <span class="text-gray-400">Visibility</span>
+                        <span class="text-white font-semibold">{{ session.is_public|yesno:"Public,Private" }}</span>
+                    </div>
+                    {% if session.scheduled_start %}
+                    <div class="flex justify-between items-center p-3 bg-gray-800/30 rounded-lg">
+                        <span class="text-gray-400">Scheduled</span>
+                        <span class="text-white font-semibold">{{ session.scheduled_start|date:"M d, H:i" }}</span>
+                    </div>
+                    {% endif %}
+                    {% if session.actual_start %}
+                    <div class="flex justify-between items-center p-3 bg-gray-800/30 rounded-lg">
+                        <span class="text-gray-400">Started</span>
+                        <span class="text-white font-semibold">{{ session.actual_start|time:"H:i" }}</span>
+                    </div>
+                    {% endif %}
+                    {% if session.actual_end %}
+                    <div class="flex justify-between items-center p-3 bg-gray-800/30 rounded-lg">
+                        <span class="text-gray-400">Ended</span>
+                        <span class="text-white font-semibold">{{ session.actual_end|time:"H:i" }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Trader Info -->
+            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 border border-gray-700 shadow-2xl">
+                <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-user-tie mr-3 text-bitget-primary"></i>
+                    About the Trader
+                </h3>
+                <div class="flex items-center mb-4">
+                    <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mr-4">
+                        <i class="fas fa-user text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-white text-lg">{{ session.trader.username }}</h4>
+                        {% if session.trader.userprofile.trader_experience %}
+                        <p class="text-bitget-primary text-sm font-semibold">{{ session.trader.userprofile.trader_experience }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if session.trader.userprofile.trader_bio %}
+                <div class="bg-gray-800/30 rounded-xl p-4">
+                    <p class="text-gray-300 text-sm leading-relaxed">{{ session.trader.userprofile.trader_bio|truncatewords:50 }}</p>
+                </div>
+                {% endif %}
+                {% if session.trader.userprofile.trader_specialization %}
+                <div class="mt-4">
+                    <span class="text-gray-400 text-sm">Specialization:</span>
+                    <p class="text-white font-semibold">{{ session.trader.userprofile.trader_specialization }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Trade Idea Modal -->
+    {% if user == session.trader %}
+    <div x-show="showTradeIdeaModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" x-cloak>
+        <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 w-full max-w-2xl mx-auto border border-gray-700 shadow-2xl">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-2xl font-bold text-white flex items-center">
+                    <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mr-4">
+                        <i class="fas fa-chart-line text-white text-lg"></i>
+                    </div>
+                    Create Trade Idea
+                </h3>
+                <button @click="showTradeIdeaModal = false" class="text-gray-400 hover:text-white transition-colors duration-200">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            <form id="tradeIdeaForm">
+                {% csrf_token %}
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-300 mb-3">Symbol *</label>
+                            <input type="text" name="symbol" required 
+                                   class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-bitget-primary focus:ring-2 focus:ring-bitget-primary/20 transition-all duration-200"
+                                   placeholder="e.g., BTCUSDT, EURUSD">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-300 mb-3">Idea Type *</label>
+                            <select name="idea_type" class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-bitget-primary focus:ring-2 focus:ring-bitget-primary/20 transition-all duration-200">
+                                <option value="BUY">Buy Recommendation</option>
+                                <option value="SELL">Sell Recommendation</option>
+                                <option value="HOLD">Hold Recommendation</option>
+                                <option value="WATCH">Watchlist Addition</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-300 mb-2">Entry</label>
+                                <input type="number" step="0.0001" name="entry_price"
+                                       class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-bitget-primary focus:ring-1 focus:ring-bitget-primary/20"
+                                       placeholder="Optional">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-300 mb-2">Target</label>
+                                <input type="number" step="0.0001" name="target_price"
+                                       class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-bitget-primary focus:ring-1 focus:ring-bitget-primary/20"
+                                       placeholder="Optional">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-300 mb-2">Stop Loss</label>
+                                <input type="number" step="0.0001" name="stop_loss"
+                                       class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-bitget-primary focus:ring-1 focus:ring-bitget-primary/20"
+                                       placeholder="Optional">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-300 mb-3">Rationale *</label>
+                            <textarea name="rationale" required rows="4"
+                                      class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-bitget-primary focus:ring-2 focus:ring-bitget-primary/20 transition-all duration-200 resize-none"
+                                      placeholder="Explain your trade idea and analysis..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-4 justify-end mt-8 pt-6 border-t border-gray-700">
+                    <button type="button" @click="showTradeIdeaModal = false" class="bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 border border-gray-600">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg">
+                        Create Trade Idea
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function liveSessionApp() {
+    return {
+        showTradeIdeaModal: false,
+        lastMessageId: {{ messages.last.id|default:0 }},
+        init() {
+            // Use data attributes for JavaScript comparisons
+            const sessionStatus = this.$el.dataset.sessionStatus;
+            const userParticipation = this.$el.dataset.userParticipation === 'true';
+            
+            if (sessionStatus === 'LIVE' && userParticipation) {
+                this.startLiveUpdates();
+            }
+        },
+        startLiveUpdates() {
+            // Poll for new messages
+            setInterval(() => {
+                this.fetchNewMessages();
+            }, 3000);
+
+            // Poll for participant updates
+            setInterval(() => {
+                this.fetchParticipants();
+            }, 5000);
+
+            // Poll for session status updates
+            setInterval(() => {
+                this.checkSessionStatus();
+            }, 10000);
+        },
+        async fetchNewMessages() {
+            try {
+                const response = await fetch(`/api/live-sessions/{{ session.id }}/messages/?last_message_id=${this.lastMessageId}`);
+                const data = await response.json();
+                
+                if (data.success && data.messages.length > 0) {
+                    const container = document.getElementById('messagesContainer');
+                    data.messages.forEach(message => {
+                        const messageEl = this.createMessageElement(message);
+                        container.appendChild(messageEl);
+                        this.lastMessageId = Math.max(this.lastMessageId, message.id);
+                    });
+                    container.scrollTop = container.scrollHeight;
+                }
+            } catch (error) {
+                console.error('Error fetching messages:', error);
+            }
+        },
+        async fetchParticipants() {
+            try {
+                const response = await fetch(`/api/live-sessions/{{ session.id }}/participants/`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.updateParticipantsList(data.participants);
+                }
+            } catch (error) {
+                console.error('Error fetching participants:', error);
+            }
+        },
+        async checkSessionStatus() {
+            try {
+                const response = await fetch(`/api/live-sessions/{{ session.id }}/status/`);
+                const data = await response.json();
+                
+                // Compare with current session status
+                if (data.status !== '{{ session.status }}') {
+                    location.reload(); // Reload if status changed
+                }
+            } catch (error) {
+                console.error('Error checking session status:', error);
+            }
+        },
+        createMessageElement(message) {
+            const div = document.createElement('div');
+            div.className = 'chat-message bg-gray-800/50 rounded-xl p-4 border border-gray-700 hover:border-gray-600 transition-all duration-200';
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex items-center space-x-3">
+                        <span class="font-semibold text-white text-sm">${message.user}</span>
+                        ${message.user === '{{ session.trader.username }}' ? 
+                          '<span class="bg-bitget-primary/20 text-bitget-primary text-xs px-2 py-1 rounded-full">Host</span>' : ''}
+                    </div>
+                    <span class="text-xs text-gray-400">${message.created_at}</span>
+                </div>
+                <p class="text-gray-300 text-sm leading-relaxed">${message.content}</p>
+                ${message.message_type !== 'TEXT' ? 
+                  `<span class="inline-block bg-blue-500/20 text-blue-400 text-xs font-semibold px-3 py-1 rounded-full mt-2 border border-blue-500/30">
+                    ${this.getMessageTypeDisplay(message.message_type)}
+                   </span>` : ''}
+            `;
+            return div;
+        },
+        getMessageTypeDisplay(type) {
+            const types = {
+                'TEXT': 'Text Message',
+                'TRADE_IDEA': 'Trade Idea',
+                'ANNOUNCEMENT': 'Announcement',
+                'QUESTION': 'Question',
+                'ANSWER': 'Answer'
+            };
+            return types[type] || type;
+        },
+        updateParticipantsList(participants) {
+            const container = document.getElementById('participantsList');
+            container.innerHTML = participants.map(p => `
+                <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded-xl border border-gray-700 hover:border-bitget-primary/50 transition-all duration-200">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                        <span class="text-white font-medium">${p.username}</span>
+                    </div>
+                    <span class="text-xs font-semibold px-2 py-1 rounded-full 
+                        ${p.role === 'TRADER' ? 'bg-red-500/20 text-red-400' :
+                          p.role === 'MODERATOR' ? 'bg-blue-500/20 text-blue-400' :
+                          'bg-gray-500/20 text-gray-400'}">
+                        ${p.role.charAt(0) + p.role.slice(1).toLowerCase()}
+                    </span>
+                </div>
+            `).join('');
+        }
+    }
+}
+
+// Message form handling
+document.addEventListener('DOMContentLoaded', function() {
+    const messageForm = document.getElementById('messageForm');
+    if (messageForm) {
+        messageForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            formData.append('session_id', '{{ session.id }}');
+            
+            try {
+                const response = await fetch('{% url "send_session_message" session.id %}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.reset();
+                    // Message will appear via polling
+                } else {
+                    alert('Error sending message: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error sending message');
+            }
+        });
+    }
+
+    // Trade idea form handling
+    const tradeIdeaForm = document.getElementById('tradeIdeaForm');
+    if (tradeIdeaForm) {
+        tradeIdeaForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            try {
+                const response = await fetch('{% url "create_trade_idea" session.id %}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Trade idea created successfully!');
+                    location.reload();
+                } else {
+                    alert('Error creating trade idea: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error creating trade idea');
+            }
+        });
+    }
+});
+
+function sendAnnouncement() {
+    const content = prompt('Enter your announcement:');
+    if (content) {
+        // This would need to be implemented similarly to message sending
+        alert('Announcement feature to be implemented');
+    }
+}
+</script>
+{% endblock %}

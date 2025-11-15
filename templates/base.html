@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}VTradingPro - Professional Trading Signals{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .bg-bitget-dark { background-color: #0d1421; }
+        .bg-bitget-card { background-color: #1e293b; }
+        .bg-bitget-darker { background-color: #0a0f1a; }
+        .text-bitget-primary { color: #00d2d3; }
+        .border-bitget { border-color: #2d3748; }
+        .hover-scale { transition: transform 0.2s ease-in-out; }
+        .hover-scale:hover { transform: translateY(-2px); }
+        .gradient-bg { background: linear-gradient(135deg, #0d1421 0%, #1a2438 100%); }
+        .btn-primary { 
+            background: linear-gradient(135deg, #00d2d3 0%, #00a8a8 100%);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #00a8a8 0%, #008b8b 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 210, 211, 0.3);
+        }
+        .btn-secondary {
+            background: #374151;
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover {
+            background: #4b5563;
+            transform: translateY(-1px);
+        }
+        [x-cloak] { display: none !important; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-bitget-dark text-white min-h-screen flex flex-col">
+    <!-- Navigation -->
+    <nav class="bg-gray-900 border-b border-bitget sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+            <div class="flex justify-between h-16">
+                <!-- Logo and main navigation -->
+                <div class="flex items-center">
+                    <a href="{% url 'home' %}" class="flex-shrink-0 flex items-center text-xl font-bold text-bitget-primary hover-scale">
+                        <i class="fas fa-chart-line mr-2"></i>
+                        <span class="hidden sm:inline">VTradingPro</span>
+                    </a>
+                    <div class="hidden md:ml-6 md:flex md:space-x-1">
+                        <a href="{% url 'home' %}" class="px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition duration-200 flex items-center">
+                            <i class="fas fa-home mr-2"></i>Home
+                        </a>
+                        <a href="{% url 'alerts' %}" class="px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition duration-200 flex items-center">
+                            <i class="fas fa-bell mr-2"></i>Alerts
+                        </a>
+                        <a href="{% url 'signal_list' %}" class="px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition duration-200 flex items-center">
+                            <i class="fas fa-signal mr-2"></i>All Signals
+                        </a>
+                        <a href="{% url 'live_sessions' %}" class="px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition duration-200 flex items-center">
+                            <i class="fas fa-video mr-2"></i>Live Sessions
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Mobile menu button -->
+                <div class="md:hidden flex items-center space-x-2">
+                    {% if user.is_authenticated %}
+                    <!-- Mobile Notifications -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="relative p-2 text-gray-400 hover:text-white transition duration-200">
+                            <i class="fas fa-bell text-lg"></i>
+                            {% if unread_notifications_count > 0 %}
+                            <span class="notification-badge absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center text-[10px]">
+                                {{ unread_notifications_count }}
+                            </span>
+                            {% else %}
+                            <span class="notification-badge hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center text-[10px]">
+                                0
+                            </span>
+                            {% endif %}
+                        </button>
+                    </div>
+                    {% endif %}
+                    <button type="button" onclick="toggleMobileMenu()" class="text-gray-400 hover:text-white focus:outline-none focus:text-white p-2">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+                
+                <!-- User actions -->
+                <div class="hidden md:flex items-center space-x-3">
+                    {% if user.is_authenticated %}
+                        <div class="flex items-center space-x-3">
+                            <!-- Notifications Dropdown -->
+                            <div class="relative" x-data="{ open: false }">
+                                <button @click="open = !open" class="relative p-2 text-gray-400 hover:text-white transition duration-200">
+                                    <i class="fas fa-bell text-lg"></i>
+                                    {% if unread_notifications_count > 0 %}
+                                    <span class="notification-badge absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                        {{ unread_notifications_count }}
+                                    </span>
+                                    {% else %}
+                                    <span class="notification-badge hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                        0
+                                    </span>
+                                    {% endif %}
+                                </button>
+                                
+                                <!-- Notifications Dropdown Menu -->
+                                <div x-show="open" @click.away="open = false" 
+                                     class="absolute right-0 mt-2 w-80 bg-bitget-card rounded-lg shadow-xl border border-gray-700 z-50"
+                                     x-cloak>
+                                    <div class="p-4 border-b border-gray-700">
+                                        <div class="flex justify-between items-center">
+                                            <h3 class="text-lg font-semibold text-white">Notifications</h3>
+                                            <a href="{% url 'notifications' %}" class="text-bitget-primary hover:text-teal-400 text-sm font-semibold">
+                                                View All
+                                            </a>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="max-h-96 overflow-y-auto">
+                                        <div id="notifications-list">
+                                            <!-- Notifications will be loaded via AJAX -->
+                                            <div class="p-4 text-center text-gray-400">
+                                                <i class="fas fa-spinner fa-spin text-lg mb-2"></i>
+                                                <p class="text-sm">Loading notifications...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="p-4 border-t border-gray-700">
+                                        <form method="POST" action="{% url 'mark_all_notifications_read' %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="w-full text-center text-bitget-primary hover:text-teal-400 text-sm font-semibold transition duration-200">
+                                                <i class="fas fa-check-double mr-2"></i>Mark All as Read
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Profile Dropdown -->
+                            <div class="relative" x-data="{ open: false }">
+                                <button @click="open = !open" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition duration-200">
+                                    <i class="fas fa-user-circle"></i>
+                                    <span class="max-w-20 truncate">{{ user.username }}</span>
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </button>
+                                
+                                <!-- Profile Dropdown Menu -->
+                                <div x-show="open" @click.away="open = false" 
+                                     class="absolute right-0 mt-2 w-48 bg-bitget-card rounded-lg shadow-xl border border-gray-700 z-50"
+                                     x-cloak>
+                                    <div class="py-1">
+                                        <a href="{% url 'profile' %}" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition duration-200">
+                                            <i class="fas fa-user mr-2"></i>Profile
+                                        </a>
+                                        {% if user.userprofile.is_trader %}
+                                        <a href="{% url 'create_live_session' %}" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition duration-200">
+                                            <i class="fas fa-video mr-2"></i>Create Session
+                                        </a>
+                                        {% endif %}
+                                        <a href="{% url 'account_logout' %}" class="block px-4 py-2 text-sm text-red-400 hover:bg-red-600 hover:text-white transition duration-200">
+                                            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="flex items-center space-x-2">
+                            <a href="{% url 'account_login' %}" class="px-3 py-2 rounded-lg text-sm font-medium btn-primary flex items-center">
+                                <i class="fas fa-sign-in-alt mr-2"></i>Login
+                            </a>
+                            <a href="{% url 'account_signup' %}" class="px-3 py-2 rounded-lg text-sm font-medium border border-bitget-primary text-bitget-primary hover:bg-teal-900 transition duration-200">
+                                Sign Up
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile menu -->
+        <div id="mobile-menu" class="md:hidden hidden bg-gray-800 border-t border-bitget">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <a href="{% url 'home' %}" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition duration-200 flex items-center">
+                    <i class="fas fa-home mr-3"></i>Home
+                </a>
+                <a href="{% url 'alerts' %}" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition duration-200 flex items-center">
+                    <i class="fas fa-bell mr-3"></i>Alerts
+                </a>
+                <a href="{% url 'signal_list' %}" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition duration-200 flex items-center">
+                    <i class="fas fa-signal mr-3"></i>All Signals
+                </a>
+                <a href="{% url 'live_sessions' %}" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition duration-200 flex items-center">
+                    <i class="fas fa-video mr-3"></i>Live Sessions
+                </a>
+                
+                {% if user.is_authenticated %}
+                    <div class="border-t border-gray-700 pt-2 mt-2">
+                        <a href="{% url 'notifications' %}" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition duration-200 flex items-center justify-between">
+                            <div class="flex items-center">
+                                <i class="fas fa-bell mr-3"></i>
+                                Notifications
+                            </div>
+                            {% if unread_notifications_count > 0 %}
+                            <span class="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                {{ unread_notifications_count }}
+                            </span>
+                            {% endif %}
+                        </a>
+                        <a href="{% url 'profile' %}" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition duration-200 flex items-center">
+                            <i class="fas fa-user-circle mr-3"></i>Profile
+                        </a>
+                        {% if user.userprofile.is_trader %}
+                        <a href="{% url 'create_live_session' %}" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition duration-200 flex items-center">
+                            <i class="fas fa-video mr-3"></i>Create Session
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'account_logout' %}" class="block px-3 py-2 rounded-md text-base font-medium bg-red-600 hover:bg-red-700 transition duration-200 flex items-center">
+                            <i class="fas fa-sign-out-alt mr-3"></i>Logout
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="border-t border-gray-700 pt-2 mt-2">
+                        <a href="{% url 'account_login' %}" class="block px-3 py-2 rounded-md text-base font-medium btn-primary flex items-center justify-center mb-2">
+                            <i class="fas fa-sign-in-alt mr-3"></i>Login
+                        </a>
+                        <a href="{% url 'account_signup' %}" class="block px-3 py-2 rounded-md text-base font-medium border border-bitget-primary text-bitget-primary text-center hover:bg-teal-900 transition duration-200">
+                            Sign Up
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 mt-4">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} p-3 sm:p-4 mb-3 sm:mb-4 rounded-lg border-l-4 {% if message.tags == 'success' %}bg-green-900 border-green-500 text-green-200{% elif message.tags == 'error' %}bg-red-900 border-red-500 text-red-200{% elif message.tags == 'warning' %}bg-yellow-900 border-yellow-500 text-yellow-200{% else %}bg-blue-900 border-blue-500 text-blue-200{% endif %} flex items-center justify-between">
+                    <div class="flex items-center flex-1">
+                        {% if message.tags == 'success' %}
+                            <i class="fas fa-check-circle mr-2 sm:mr-3 text-sm sm:text-base"></i>
+                        {% elif message.tags == 'error' %}
+                            <i class="fas fa-exclamation-circle mr-2 sm:mr-3 text-sm sm:text-base"></i>
+                        {% elif message.tags == 'warning' %}
+                            <i class="fas fa-exclamation-triangle mr-2 sm:mr-3 text-sm sm:text-base"></i>
+                        {% else %}
+                            <i class="fas fa-info-circle mr-2 sm:mr-3 text-sm sm:text-base"></i>
+                        {% endif %}
+                        <span class="text-sm sm:text-base">{{ message }}</span>
+                    </div>
+                    <button onclick="this.parentElement.style.display='none'" class="text-sm sm:text-lg hover:text-white ml-2 sm:ml-4 flex-shrink-0">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="flex-grow">
+        {% block content %}
+        <!-- Content will be injected here -->
+        {% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 border-t border-bitget mt-auto">
+        <div class="max-w-7xl mx-auto py-8 sm:py-12 px-3 sm:px-4 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 sm:gap-8">
+                <!-- Brand -->
+                <div class="col-span-1 md:col-span-2">
+                    <div class="flex items-center mb-3 sm:mb-4">
+                        <i class="fas fa-chart-line text-bitget-primary text-xl sm:text-2xl mr-2 sm:mr-3"></i>
+                        <span class="text-lg sm:text-xl font-bold text-bitget-primary">VTradingPro</span>
+                    </div>
+                    <p class="text-gray-400 mb-3 sm:mb-4 max-w-md text-sm sm:text-base">
+                        Professional trading signals with high accuracy. Get real-time alerts and maximize your trading potential with our premium signals.
+                    </p>
+                    <div class="flex space-x-3 sm:space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-bitget-primary transition duration-200">
+                            <i class="fab fa-twitter text-lg sm:text-xl"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-bitget-primary transition duration-200">
+                            <i class="fab fa-telegram text-lg sm:text-xl"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-bitget-primary transition duration-200">
+                            <i class="fab fa-discord text-lg sm:text-xl"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Quick Links -->
+                <div>
+                    <h3 class="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Quick Links</h3>
+                    <ul class="space-y-1 sm:space-y-2">
+                        <li><a href="{% url 'home' %}" class="text-gray-400 hover:text-bitget-primary transition duration-200 text-sm sm:text-base">Home</a></li>
+                        <li><a href="{% url 'alerts' %}" class="text-gray-400 hover:text-bitget-primary transition duration-200 text-sm sm:text-base">Trading Alerts</a></li>
+                        <li><a href="{% url 'signal_list' %}" class="text-gray-400 hover:text-bitget-primary transition duration-200 text-sm sm:text-base">All Signals</a></li>
+                        <li><a href="{% url 'live_sessions' %}" class="text-gray-400 hover:text-bitget-primary transition duration-200 text-sm sm:text-base">Live Sessions</a></li>
+                        {% if user.is_authenticated %}
+                            <li><a href="{% url 'profile' %}" class="text-gray-400 hover:text-bitget-primary transition duration-200 text-sm sm:text-base">My Profile</a></li>
+                            <li><a href="{% url 'notifications' %}" class="text-gray-400 hover:text-bitget-primary transition duration-200 text-sm sm:text-base">Notifications</a></li>
+                        {% else %}
+                            <li><a href="{% url 'account_login' %}" class="text-gray-400 hover:text-bitget-primary transition duration-200 text-sm sm:text-base">Login/Signup</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <!-- Support -->
+                <div>
+                    <h3 class="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Support</h3>
+                    <ul class="space-y-1 sm:space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-bitget-primary transition duration-200 text-sm sm:text-base">Help Center</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-bitget-primary transition duration-200 text-sm sm:text-base">Contact Us</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-bitget-primary transition duration-200 text-sm sm:text-base">Privacy Policy</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-bitget-primary transition duration-200 text-sm sm:text-base">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Bottom Bar -->
+            <div class="border-t border-gray-800 mt-6 sm:mt-8 pt-6 sm:pt-8 flex flex-col md:flex-row justify-between items-center">
+                <div class="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-0 text-center md:text-left">
+                    <p>&copy; 2024 VTradingPro. All rights reserved.</p>
+                </div>
+                <div class="text-gray-500 text-xs sm:text-sm text-center md:text-right">
+                    <p class="flex items-center justify-center md:justify-end">
+                        <i class="fas fa-exclamation-triangle mr-1 sm:mr-2 text-yellow-500 text-xs"></i>
+                        <span class="text-xs sm:text-sm">Trade at your own risk. Past performance is not indicative of future results.</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script>
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        // Auto-hide messages after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            const messages = document.querySelectorAll('.alert');
+            messages.forEach(message => {
+                setTimeout(() => {
+                    message.style.opacity = '0';
+                    message.style.transition = 'opacity 0.5s ease';
+                    setTimeout(() => {
+                        if (message.parentElement) {
+                            message.parentElement.remove();
+                        }
+                    }, 500);
+                }, 5000);
+            });
+
+            // Load initial notification count
+            if (typeof loadNotificationsCount === 'function') {
+                loadNotificationsCount();
+            }
+        });
+
+        // Load recent notifications
+        function loadRecentNotifications() {
+            fetch('{% url "get_recent_notifications" %}')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('notifications-list');
+                    
+                    if (data.notifications.length === 0) {
+                        container.innerHTML = `
+                            <div class="p-4 text-center text-gray-400">
+                                <i class="fas fa-bell-slash text-lg mb-2"></i>
+                                <p class="text-sm">No notifications</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    let html = '';
+                    data.notifications.forEach(notification => {
+                        html += `
+                            <div class="p-3 border-b border-gray-700 hover:bg-gray-800 transition duration-200 ${notification.is_read ? '' : 'bg-gray-750'}">
+                                <div class="flex justify-between items-start mb-2">
+                                    <span class="text-xs px-2 py-1 rounded ${
+                                        notification.notification_type === 'SUCCESS' ? 'bg-green-600 text-green-100' :
+                                        notification.notification_type === 'WARNING' ? 'bg-yellow-600 text-yellow-100' :
+                                        notification.notification_type === 'ERROR' ? 'bg-red-600 text-red-100' :
+                                        notification.notification_type === 'ALERT' ? 'bg-bitget-primary text-white' :
+                                        'bg-blue-600 text-blue-100'
+                                    }">
+                                        ${notification.notification_type}
+                                    </span>
+                                    <span class="text-xs text-gray-500">${notification.time_ago}</span>
+                                </div>
+                                <h4 class="font-semibold text-white text-sm mb-1">${notification.title}</h4>
+                                <p class="text-gray-300 text-xs mb-2">${notification.message}</p>
+                                ${!notification.is_read ? `
+                                <form method="POST" action="/notifications/mark-read/${notification.id}/" class="inline">
+                                    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                                    <button type="submit" class="text-bitget-primary hover:text-teal-400 text-xs font-semibold">
+                                        <i class="fas fa-check mr-1"></i>Mark as Read
+                                    </button>
+                                </form>
+                                ` : ''}
+                            </div>
+                        `;
+                    });
+                    
+                    container.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error loading notifications:', error);
+                    document.getElementById('notifications-list').innerHTML = `
+                        <div class="p-4 text-center text-red-400">
+                            <i class="fas fa-exclamation-triangle text-lg mb-2"></i>
+                            <p class="text-sm">Error loading notifications</p>
+                        </div>
+                    `;
+                });
+        }
+
+        // Load notifications count
+        function loadNotificationsCount() {
+            fetch('{% url "get_notifications_count" %}')
+                .then(response => response.json())
+                .then(data => {
+                    const badges = document.querySelectorAll('.notification-badge');
+                    badges.forEach(badge => {
+                        if (data.count > 0) {
+                            badge.textContent = data.count > 99 ? '99+' : data.count;
+                            badge.classList.remove('hidden');
+                        } else {
+                            badge.classList.add('hidden');
+                        }
+                    });
+                })
+                .catch(error => console.error('Error loading notification count:', error));
+        }
+
+        // Auto-refresh notifications every 30 seconds
+        setInterval(loadNotificationsCount, 30000);
+
+        // Load notifications when dropdown opens
+        document.addEventListener('DOMContentLoaded', function() {
+            const notificationButtons = document.querySelectorAll('[x-data] button');
+            notificationButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    setTimeout(loadRecentNotifications, 100);
+                });
+            });
+        });
+
+        // Add smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
+    <div class="bg-bitget-card rounded-lg p-4 sm:p-6">
+        <h1 class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Purchase Signal</h1>
+        
+        <!-- Signal Info -->
+        <div class="bg-gray-800 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+            <h3 class="text-lg font-semibold mb-2 sm:mb-3">Signal Details</h3>
+            <div class="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4 text-sm">
+                <div class="flex justify-between xs:block">
+                    <span class="text-gray-400 xs:block">Symbol:</span>
+                    <span class="font-semibold xs:ml-0 ml-2">{{ signal.symbol }}</span>
+                </div>
+                <div class="flex justify-between xs:block">
+                    <span class="text-gray-400 xs:block">Type:</span>
+                    <span class="font-semibold xs:ml-0 ml-2 {% if signal.signal_type == 'BUY' %}text-green-400{% else %}text-red-400{% endif %}">
+                        {{ signal.signal_type }}
+                    </span>
+                </div>
+                <div class="flex justify-between xs:block">
+                    <span class="text-gray-400 xs:block">Entry Price:</span>
+                    <span class="font-semibold xs:ml-0 ml-2">${{ signal.entry_price }}</span>
+                </div>
+                <div class="flex justify-between xs:block">
+                    <span class="text-gray-400 xs:block">Status:</span>
+                    <span class="font-semibold xs:ml-0 ml-2">{{ signal.status }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Purchase Form -->
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="mb-4 sm:mb-6">
+                <label class="block text-sm font-medium mb-2 sm:mb-3">Select Payment Method</label>
+                <div class="space-y-2 sm:space-y-3">
+                    {% for choice in form.payment_method %}
+                    <label class="flex items-center p-3 sm:p-4 border border-bitget rounded-lg cursor-pointer hover:bg-gray-800 payment-option" data-value="{{ choice.data.value }}">
+                        {{ choice.tag }}
+                        <span class="ml-2 sm:ml-3 flex items-center text-sm sm:text-base">
+                            {% if choice.data.value == 'PAYPAL' %}
+                                <i class="fab fa-paypal text-blue-500 text-lg sm:text-xl mr-2"></i>
+                            {% else %}
+                                <i class="fas fa-mobile-alt text-green-500 text-lg sm:text-xl mr-2"></i>
+                            {% endif %}
+                            {{ choice.choice_label }}
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="bg-yellow-900 border border-yellow-700 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+                <div class="flex items-start">
+                    <i class="fas fa-exclamation-triangle text-yellow-400 mr-2 sm:mr-3 mt-0.5"></i>
+                    <div>
+                        <h4 class="font-semibold text-sm sm:text-base">Price: ${{ signal.price }}</h4>
+                        <p class="text-xs sm:text-sm text-yellow-300 mt-1">
+                            After payment, you'll get full access to this signal including entry price, 
+                            take profit levels, and stop loss.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+                <button type="submit" class="w-full sm:flex-1 bg-bitget-primary hover:bg-teal-600 text-white py-3 px-4 rounded-lg font-semibold text-sm sm:text-base transition duration-200">
+                    <i class="fas fa-lock mr-2"></i>Purchase Now
+                </button>
+                <a href="{% url 'signal_list' %}" class="w-full sm:flex-1 border border-gray-600 text-gray-300 hover:bg-gray-800 py-3 px-4 rounded-lg font-semibold text-center text-sm sm:text-base transition duration-200">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const paymentOptions = document.querySelectorAll('.payment-option');
+    
+    paymentOptions.forEach(option => {
+        const radioInput = option.querySelector('input[type="radio"]');
+        
+        // Check if this option is selected by default
+        if (radioInput.checked) {
+            option.classList.add('border-bitget-primary', 'bg-gray-800');
+        }
+        
+        option.addEventListener('click', function() {
+            // Remove selection from all options
+            paymentOptions.forEach(opt => {
+                opt.classList.remove('border-bitget-primary', 'bg-gray-800');
+                opt.classList.add('border-bitget');
+            });
+            
+            // Add selection to clicked option
+            this.classList.remove('border-bitget');
+            this.classList.add('border-bitget-primary', 'bg-gray-800');
+            
+            // Ensure the radio input is checked
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.bg-gray-800 {
+    background-color: #1f2937;
+}
+.border-bitget-primary {
+    border-color: #00d2d3;
+}
+.border-bitget {
+    border-color: #374151;
+}
+
+/* Extra small screen breakpoint */
+@media (min-width: 475px) {
+    .xs\:grid-cols-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .xs\:block {
+        display: block;
+    }
+    .xs\:ml-0 {
+        margin-left: 0;
+    }
+}
+</style>
+{% endblock %}

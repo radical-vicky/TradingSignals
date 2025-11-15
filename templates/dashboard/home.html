@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+    <!-- Hero Section -->
+    <div class="text-center mb-8 sm:mb-12">
+        <h1 class="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold mb-3 sm:mb-4 text-white">
+            Professional Trading Signals
+        </h1>
+        <p class="text-base sm:text-lg lg:text-xl text-gray-300 mb-6 sm:mb-8 px-2">
+            Get accurate forex and crypto signals with high success rate
+        </p>
+        
+        {% if not user.is_authenticated %}
+        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
+            <a href="{% url 'account_login' %}" class="w-full sm:w-auto bg-bitget-primary hover:bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold transition duration-200 text-center text-sm sm:text-base">
+                Get Started
+            </a>
+            <a href="{% url 'signal_list' %}" class="w-full sm:w-auto border border-bitget-primary text-bitget-primary hover:bg-teal-900 px-6 py-3 rounded-lg font-semibold transition duration-200 text-center text-sm sm:text-base">
+                View Signals
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Features Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-12">
+        <div class="bg-bitget-card p-4 sm:p-6 rounded-lg text-center">
+            <i class="fas fa-bolt text-bitget-primary text-2xl sm:text-3xl mb-3 sm:mb-4"></i>
+            <h3 class="text-lg sm:text-xl font-semibold mb-2 text-white">Fast Execution</h3>
+            <p class="text-gray-400 text-sm sm:text-base">Real-time signal delivery for quick trade execution</p>
+        </div>
+        
+        <div class="bg-bitget-card p-4 sm:p-6 rounded-lg text-center">
+            <i class="fas fa-chart-line text-bitget-primary text-2xl sm:text-3xl mb-3 sm:mb-4"></i>
+            <h3 class="text-lg sm:text-xl font-semibold mb-2 text-white">High Accuracy</h3>
+            <p class="text-gray-400 text-sm sm:text-base">Proven track record with 85%+ success rate</p>
+        </div>
+        
+        <div class="bg-bitget-card p-4 sm:p-6 rounded-lg text-center">
+            <i class="fas fa-shield-alt text-bitget-primary text-2xl sm:text-3xl mb-3 sm:mb-4"></i>
+            <h3 class="text-lg sm:text-xl font-semibold mb-2 text-white">Risk Management</h3>
+            <p class="text-gray-400 text-sm sm:text-base">Clear stop loss and take profit levels</p>
+        </div>
+    </div>
+
+    <!-- Latest Signals -->
+    <div class="bg-bitget-card rounded-lg p-4 sm:p-6">
+        <h2 class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-white">Latest Signals</h2>
+        
+        <!-- Mobile Card View -->
+        <div class="block sm:hidden space-y-3">
+            {% if latest_signals %}
+                {% for signal in latest_signals %}
+                <div class="bg-gray-800 rounded-lg p-4 border-l-4 {% if signal.signal_type == 'BUY' %}border-green-500{% else %}border-red-500{% endif %}">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center">
+                            <span class="font-semibold text-white">{{ signal.symbol }}</span>
+                            {% if signal.status == 'OPEN' %}
+                            <span class="ml-2 w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                            {% endif %}
+                        </div>
+                        <span class="px-2 py-1 rounded text-xs font-semibold {% if signal.status == 'OPEN' %}bg-green-600 text-white{% else %}bg-gray-600 text-white{% endif %}">
+                            {{ signal.status }}
+                        </span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2 text-sm mb-3">
+                        <div>
+                            <span class="text-gray-400">Type:</span>
+                            <span class="{% if signal.signal_type == 'BUY' %}text-green-400{% else %}text-red-400{% endif %} font-semibold ml-1">
+                                {{ signal.signal_type }}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">Entry:</span>
+                            <span class="text-white ml-1">${{ signal.entry_price }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">Time:</span>
+                            <span class="text-gray-300 ml-1 text-xs">{{ signal.timestamp|date:"M d, H:i" }}</span>
+                        </div>
+                    </div>
+
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'purchase_signal' signal.id %}" class="w-full bg-bitget-primary hover:bg-teal-600 text-white py-2 px-3 rounded text-sm font-semibold transition duration-200 flex items-center justify-center">
+                        <i class="fas fa-shopping-cart mr-2"></i>Purchase - ${{ signal.price }}
+                    </a>
+                    {% else %}
+                    <a href="{% url 'account_login' %}?next={{ request.path }}" class="w-full bg-bitget-primary hover:bg-teal-600 text-white py-2 px-3 rounded text-sm font-semibold transition duration-200 flex items-center justify-center">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Login to Purchase
+                    </a>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-6">
+                    <i class="fas fa-inbox text-3xl text-gray-500 mb-3"></i>
+                    <p class="text-gray-400">No signals available at the moment.</p>
+                    <p class="text-gray-500 text-sm mt-1">Check back later for new trading opportunities.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Desktop Table View -->
+        <div class="hidden sm:block">
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-full">
+                    <thead>
+                        <tr class="bg-gray-800">
+                            <th class="py-3 px-3 lg:px-4 text-left text-sm font-medium text-gray-300">Symbol</th>
+                            <th class="py-3 px-3 lg:px-4 text-left text-sm font-medium text-gray-300">Type</th>
+                            <th class="py-3 px-3 lg:px-4 text-left text-sm font-medium text-gray-300">Entry Price</th>
+                            <th class="py-3 px-3 lg:px-4 text-left text-sm font-medium text-gray-300">Price</th>
+                            <th class="py-3 px-3 lg:px-4 text-left text-sm font-medium text-gray-300">Status</th>
+                            <th class="py-3 px-3 lg:px-4 text-left text-sm font-medium text-gray-300">Time</th>
+                            {% if user.is_authenticated %}
+                            <th class="py-3 px-3 lg:px-4 text-left text-sm font-medium text-gray-300">Action</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        {% for signal in latest_signals %}
+                        <tr class="hover:bg-gray-800 transition duration-200">
+                            <td class="py-3 px-3 lg:px-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="font-semibold text-white text-sm">{{ signal.symbol }}</span>
+                                    {% if signal.status == 'OPEN' %}
+                                    <span class="ml-2 w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="py-3 px-3 lg:px-4 whitespace-nowrap">
+                                <span class="{% if signal.signal_type == 'BUY' %}text-green-400{% else %}text-red-400{% endif %} font-semibold px-2 py-1 rounded text-xs">
+                                    {{ signal.signal_type }}
+                                </span>
+                            </td>
+                            <td class="py-3 px-3 lg:px-4 whitespace-nowrap text-white text-sm">${{ signal.entry_price }}</td>
+                            <td class="py-3 px-3 lg:px-4 whitespace-nowrap text-bitget-primary text-sm font-semibold">${{ signal.price }}</td>
+                            <td class="py-3 px-3 lg:px-4 whitespace-nowrap">
+                                <span class="px-2 py-1 rounded text-xs font-semibold {% if signal.status == 'OPEN' %}bg-green-600 text-white{% else %}bg-gray-600 text-white{% endif %}">
+                                    {{ signal.status }}
+                                </span>
+                            </td>
+                            <td class="py-3 px-3 lg:px-4 whitespace-nowrap text-gray-300 text-sm">{{ signal.timestamp|date:"M d, H:i" }}</td>
+                            {% if user.is_authenticated %}
+                            <td class="py-3 px-3 lg:px-4 whitespace-nowrap">
+                                <a href="{% url 'purchase_signal' signal.id %}" class="text-bitget-primary hover:text-teal-400 transition duration-200 text-sm flex items-center">
+                                    <i class="fas fa-shopping-cart mr-1 text-xs"></i>Purchase
+                                </a>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="{% if user.is_authenticated %}7{% else %}6{% endif %}" class="py-6 text-center text-gray-400">
+                                <i class="fas fa-inbox text-2xl mb-2 block"></i>
+                                No signals available at the moment.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        {% if user.is_authenticated and latest_signals %}
+        <div class="text-center mt-4 sm:mt-6">
+            <a href="{% url 'signal_list' %}" class="bg-bitget-primary hover:bg-teal-600 text-white px-6 py-2 rounded-lg font-semibold transition duration-200 text-sm sm:text-base">
+                View All Signals
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Additional Call to Action for non-authenticated users -->
+    {% if not user.is_authenticated %}
+    <div class="mt-6 sm:mt-8 bg-bitget-card rounded-lg p-4 sm:p-6 text-center">
+        <h3 class="text-lg sm:text-xl font-semibold mb-2 text-white">Start Your Trading Journey Today</h3>
+        <p class="text-gray-400 mb-4 text-sm sm:text-base">Join thousands of successful traders using our signals</p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+            <a href="{% url 'account_signup' %}" class="bg-bitget-primary hover:bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold transition duration-200 text-sm sm:text-base">
+                Create Free Account
+            </a>
+            <a href="{% url 'alerts' %}" class="border border-bitget-primary text-bitget-primary hover:bg-teal-900 px-6 py-3 rounded-lg font-semibold transition duration-200 text-sm sm:text-base">
+                See Trading Alerts
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

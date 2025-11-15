@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+
+{% block title %}Create Live Session - VTradingPro{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-bitget-primary to-teal-600 rounded-2xl flex items-center justify-center mr-4">
+                <i class="fas fa-video text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-3xl lg:text-4xl font-bold text-white">Create Live Session</h1>
+                <p class="text-gray-400 mt-2">Schedule a new live trading session for your followers and community</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border border-gray-700 shadow-2xl">
+        <form method="post" id="sessionForm">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                <!-- Left Column -->
+                <div class="space-y-6">
+                    <!-- Title -->
+                    <div>
+                        <label for="{{ form.title.id_for_label }}" class="block text-sm font-semibold text-gray-300 mb-3">
+                            <i class="fas fa-heading mr-2 text-bitget-primary"></i>
+                            Session Title *
+                        </label>
+                        {{ form.title }}
+                        {% if form.title.errors %}
+                        <p class="text-red-400 text-sm mt-2 flex items-center">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            {{ form.title.errors.0 }}
+                        </p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Session Type -->
+                    <div>
+                        <label for="{{ form.session_type.id_for_label }}" class="block text-sm font-semibold text-gray-300 mb-3">
+                            <i class="fas fa-tags mr-2 text-bitget-primary"></i>
+                            Session Type *
+                        </label>
+                        <div class="relative">
+                            {{ form.session_type }}
+                            <div class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
+                        </div>
+                        {% if form.session_type.errors %}
+                        <p class="text-red-400 text-sm mt-2 flex items-center">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            {{ form.session_type.errors.0 }}
+                        </p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Schedule -->
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label for="{{ form.scheduled_start.id_for_label }}" class="block text-sm font-semibold text-gray-300 mb-3">
+                                <i class="fas fa-play-circle mr-2 text-bitget-primary"></i>
+                                Start Time *
+                            </label>
+                            {{ form.scheduled_start }}
+                            {% if form.scheduled_start.errors %}
+                            <p class="text-red-400 text-sm mt-2 flex items-center">
+                                <i class="fas fa-exclamation-circle mr-2"></i>
+                                {{ form.scheduled_start.errors.0 }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.scheduled_end.id_for_label }}" class="block text-sm font-semibold text-gray-300 mb-3">
+                                <i class="fas fa-stop-circle mr-2 text-bitget-primary"></i>
+                                End Time *
+                            </label>
+                            {{ form.scheduled_end }}
+                            {% if form.scheduled_end.errors %}
+                            <p class="text-red-400 text-sm mt-2 flex items-center">
+                                <i class="fas fa-exclamation-circle mr-2"></i>
+                                {{ form.scheduled_end.errors.0 }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Participants -->
+                    <div>
+                        <label for="{{ form.max_participants.id_for_label }}" class="block text-sm font-semibold text-gray-300 mb-3">
+                            <i class="fas fa-users mr-2 text-bitget-primary"></i>
+                            Maximum Participants
+                        </label>
+                        {{ form.max_participants }}
+                        {% if form.max_participants.errors %}
+                        <p class="text-red-400 text-sm mt-2 flex items-center">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            {{ form.max_participants.errors.0 }}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="space-y-6">
+                    <!-- Description -->
+                    <div>
+                        <label for="{{ form.description.id_for_label }}" class="block text-sm font-semibold text-gray-300 mb-3">
+                            <i class="fas fa-align-left mr-2 text-bitget-primary"></i>
+                            Session Description *
+                        </label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                        <p class="text-red-400 text-sm mt-2 flex items-center">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            {{ form.description.errors.0 }}
+                        </p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Visibility -->
+                    <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 border border-gray-700">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <label for="{{ form.is_public.id_for_label }}" class="block text-sm font-semibold text-gray-300 mb-2">
+                                    <i class="fas fa-globe mr-2 text-bitget-primary"></i>
+                                    Public Session
+                                </label>
+                                <p class="text-gray-400 text-sm">Make this session visible to all users in the platform</p>
+                            </div>
+                            <div class="relative inline-block w-12 h-6">
+                                {{ form.is_public }}
+                                <label for="{{ form.is_public.id_for_label }}" class="absolute top-0 left-0 right-0 bottom-0 bg-gray-700 rounded-full cursor-pointer transition-all duration-300 before:absolute before:content-[''] before:w-4 before:h-4 before:bg-white before:rounded-full before:top-1 before:left-1 before:transition-all before:duration-300"></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Session Type Guide -->
+                    <div class="bg-gradient-to-br from-bitget-primary/10 to-teal-600/10 rounded-2xl p-6 border border-bitget-primary/20">
+                        <h4 class="text-lg font-semibold text-white mb-4 flex items-center">
+                            <i class="fas fa-info-circle mr-3 text-bitget-primary"></i>
+                            Session Types Guide
+                        </h4>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex items-start space-x-3">
+                                <div class="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                                <div>
+                                    <strong class="text-white">Trading Session:</strong>
+                                    <p class="text-gray-400">Live trading with real positions and market execution</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                                <div>
+                                    <strong class="text-white">Q&A Session:</strong>
+                                    <p class="text-gray-400">Interactive question and answer format with participants</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
+                                <div>
+                                    <strong class="text-white">Educational Session:</strong>
+                                    <p class="text-gray-400">Teaching trading concepts, strategies, and techniques</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
+                                <div>
+                                    <strong class="text-white">Market Analysis:</strong>
+                                    <p class="text-gray-400">Technical and fundamental analysis of current markets</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-end mt-8 pt-8 border-t border-gray-700">
+                <a href="{% url 'live_sessions' %}" class="bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white font-semibold py-4 px-8 rounded-xl flex items-center justify-center transition-all duration-300 transform hover:scale-105 border border-gray-600">
+                    <i class="fas fa-arrow-left mr-3"></i>
+                    Back to Sessions
+                </a>
+                <button type="submit" class="bg-gradient-to-r from-bitget-primary to-teal-600 hover:from-teal-600 hover:to-bitget-primary text-white font-semibold py-4 px-8 rounded-xl flex items-center justify-center transition-all duration-300 transform hover:scale-105 shadow-lg">
+                    <i class="fas fa-plus-circle mr-3 text-lg"></i>
+                    Create Session
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+/* Custom form styling */
+input, textarea, select {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(55, 65, 81, 0.8);
+    color: white;
+    border-radius: 12px;
+    padding: 12px 16px;
+    width: 100%;
+    transition: all 0.3s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: #00d2d3;
+    box-shadow: 0 0 0 2px rgba(0, 210, 211, 0.2);
+    background: rgba(30, 41, 59, 0.9);
+}
+
+/* Custom checkbox styling */
+input[type="checkbox"] {
+    display: none;
+}
+
+input[type="checkbox"] + label {
+    position: relative;
+    padding-left: 3rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+}
+
+input[type="checkbox"] + label:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2.5rem;
+    height: 1.5rem;
+    background: #4b5563;
+    border-radius: 1rem;
+    transition: all 0.3s ease;
+}
+
+input[type="checkbox"] + label:after {
+    content: '';
+    position: absolute;
+    left: 0.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1rem;
+    height: 1rem;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+input[type="checkbox"]:checked + label:before {
+    background: #00d2d3;
+}
+
+input[type="checkbox"]:checked + label:after {
+    left: 1.25rem;
+}
+
+/* Custom datetime input styling */
+input[type="datetime-local"] {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+}
+
+/* Number input styling */
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set minimum datetime to current time
+    const now = new Date();
+    const timezoneOffset = now.getTimezoneOffset() * 60000;
+    const localISOTime = new Date(now - timezoneOffset).toISOString().slice(0, 16);
+    
+    const startInput = document.getElementById('id_scheduled_start');
+    const endInput = document.getElementById('id_scheduled_end');
+    
+    if (startInput) {
+        startInput.min = localISOTime;
+        // Set default start time to next hour
+        const nextHour = new Date(now.getTime() + 60 * 60 * 1000);
+        const nextHourISO = new Date(nextHour - timezoneOffset).toISOString().slice(0, 16);
+        startInput.value = nextHourISO;
+    }
+    if (endInput) {
+        endInput.min = localISOTime;
+        // Set default end time to 2 hours from start
+        if (startInput && startInput.value) {
+            const startTime = new Date(startInput.value);
+            const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
+            const endTimeISO = new Date(endTime - timezoneOffset).toISOString().slice(0, 16);
+            endInput.value = endTimeISO;
+        }
+    }
+
+    // Update end time when start time changes
+    if (startInput) {
+        startInput.addEventListener('change', function() {
+            if (endInput) {
+                const startTime = new Date(this.value);
+                const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
+                const endTimeISO = new Date(endTime - timezoneOffset).toISOString().slice(0, 16);
+                endInput.min = this.value;
+                if (!endInput.value || new Date(endInput.value) <= startTime) {
+                    endInput.value = endTimeISO;
+                }
+            }
+        });
+    }
+
+    // Form validation
+    const form = document.getElementById('sessionForm');
+    form.addEventListener('submit', function(e) {
+        const startTime = new Date(startInput.value);
+        const endTime = new Date(endInput.value);
+        const now = new Date();
+        
+        if (startTime >= endTime) {
+            e.preventDefault();
+            showError('End time must be after start time');
+            return false;
+        }
+        
+        if (startTime <= now) {
+            e.preventDefault();
+            showError('Start time must be in the future');
+            return false;
+        }
+
+        // Validate session duration (max 8 hours)
+        const duration = (endTime - startTime) / (1000 * 60 * 60);
+        if (duration > 8) {
+            e.preventDefault();
+            showError('Session duration cannot exceed 8 hours');
+            return false;
+        }
+    });
+
+    function showError(message) {
+        // Create error toast
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-red-600 text-white px-6 py-4 rounded-xl shadow-2xl z-50 transform animate-bounce';
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle mr-3"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        // Remove toast after 5 seconds
+        setTimeout(() => {
+            toast.remove();
+        }, 5000);
+    }
+
+    // Add character counter for description
+    const descriptionField = document.getElementById('id_description');
+    if (descriptionField) {
+        const counter = document.createElement('div');
+        counter.className = 'text-right text-gray-400 text-sm mt-2';
+        counter.textContent = '0/1000 characters';
+        
+        descriptionField.parentNode.appendChild(counter);
+        
+        descriptionField.addEventListener('input', function() {
+            const length = this.value.length;
+            counter.textContent = `${length}/1000 characters`;
+            
+            if (length > 1000) {
+                counter.classList.add('text-red-400');
+            } else {
+                counter.classList.remove('text-red-400');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

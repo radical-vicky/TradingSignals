@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ room.room_name }} - Video Call - VTradingPro{% endblock %}
+
+{% block extra_css %}
+<style>
+.video-container {
+    background: #1a1a1a;
+    border-radius: 12px;
+    position: relative;
+}
+.controls {
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(10px);
+}
+.participant-video {
+    background: #2d2d2d;
+    border-radius: 8px;
+    position: relative;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-900">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center space-x-4">
+                <a href="{% url 'dashboard' %}" class="text-gray-400 hover:text-white transition-colors">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </a>
+                <div>
+                    <h1 class="text-2xl font-bold text-white">{{ room.room_name }}</h1>
+                    <p class="text-gray-400">Room ID: {{ room.room_id }}</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                    <i class="fas fa-circle animate-pulse mr-1"></i>
+                    {{ participants|length }} Participants
+                </span>
+                <a href="{% url 'leave_video_call' room.room_id %}" 
+                   class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-xl font-semibold transition-colors">
+                    Leave Call
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Main Video Area -->
+            <div class="lg:col-span-3">
+                <div class="video-container h-96 lg:h-[600px] flex items-center justify-center">
+                    <!-- Video elements will be inserted here by JavaScript -->
+                    <div id="localVideoContainer" class="participant-video w-full h-full">
+                        <video id="localVideo" autoplay muted class="w-full h-full object-cover rounded-lg"></video>
+                        <div class="absolute bottom-4 left-4 text-white bg-black/50 px-3 py-1 rounded-lg">
+                            You
+                        </div>
+                    </div>
+                    <div id="remoteVideosContainer" class="absolute inset-0 grid grid-cols-2 gap-4 p-4 hidden">
+                        <!-- Remote videos will be added here -->
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="controls mt-4 rounded-2xl p-6">
+                    <div class="flex items-center justify-center space-x-6">
+                        <button id="toggleAudio" class="w-14 h-14 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-white text-xl transition-colors">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        
+                        <button id="toggleVideo" class="w-14 h-14 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-white text-xl transition-colors">
+                            <i class="fas fa-video"></i>
+                        </button>
+                        
+                        {% if room.allow_screen_share and user_profile.screen_sharing_enabled %}
+                        <button id="toggleScreenShare" class="w-14 h-14 bg-bitget-primary hover:bg-teal-600 rounded-full flex items-center justify-center text-white text-xl transition-colors">
+                            <i class="fas fa-desktop"></i>
+                        </button>
+                        {% endif %}
+                        
+                        <button id="leaveCall" class="w-14 h-14 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-xl transition-colors">
+                            <i class="fas fa-phone-slash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Participants Sidebar -->
+            <div class="lg:col-span-1">
+                <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 border border-gray-700 shadow-2xl">
+                    <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                        <i class="fas fa-users mr-3 text-bitget-primary"></i>
+                        Participants
+                    </h3>
+                    <div class="space-y-3 max-h-96 overflow-y-auto">
+                        {% for participant in participants %}
+                        <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded-xl border border-gray-700">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                                <span class="text-white font-medium">{{ participant.user.username }}</span>
+                            </div>
+                            {% if participant.user == room.created_by %}
+                            <span class="bg-bitget-primary/20 text-bitget-primary text-xs px-2 py-1 rounded-full">Host</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Chat Section -->
+                <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 border border-gray-700 shadow-2xl mt-6">
+                    <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                        <i class="fas fa-comments mr-3 text-bitget-primary"></i>
+                        Chat
+                    </h3>
+                    <div class="h-48 overflow-y-auto mb-4 space-y-2" id="chatMessages">
+                        <!-- Chat messages will appear here -->
+                    </div>
+                    <div class="flex space-x-2">
+                        <input type="text" placeholder="Type a message..." 
+                               class="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-bitget-primary">
+                        <button class="bg-bitget-primary hover:bg-teal-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- WebRTC JavaScript -->
+<script>
+class VideoCallManager {
+    constructor() {
+        this.localStream = null;
+        this.remoteStreams = new Map();
+        this.peerConnections = new Map();
+        this.isAudioMuted = false;
+        this.isVideoOff = false;
+        this.isScreenSharing = false;
+        
+        this.configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' }
+            ]
+        };
+        
+        this.init();
+    }
+    
+    async init() {
+        await this.getUserMedia();
+        this.setupEventListeners();
+    }
+    
+    async getUserMedia() {
+        try {
+            this.localStream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+            
+            const localVideo = document.getElementById('localVideo');
+            localVideo.srcObject = this.localStream;
+            
+        } catch (error) {
+            console.error('Error accessing media devices:', error);
+            alert('Could not access camera/microphone. Please check permissions.');
+        }
+    }
+    
+    setupEventListeners() {
+        // Toggle audio
+        document.getElementById('toggleAudio').addEventListener('click', () => {
+            this.toggleAudio();
+        });
+        
+        // Toggle video
+        document.getElementById('toggleVideo').addEventListener('click', () => {
+            this.toggleVideo();
+        });
+        
+        // Toggle screen share
+        const screenShareBtn = document.getElementById('toggleScreenShare');
+        if (screenShareBtn) {
+            screenShareBtn.addEventListener('click', () => {
+                this.toggleScreenShare();
+            });
+        }
+        
+        // Leave call
+        document.getElementById('leaveCall').addEventListener('click', () => {
+            this.leaveCall();
+        });
+    }
+    
+    toggleAudio() {
+        const audioTracks = this.localStream.getAudioTracks();
+        audioTracks.forEach(track => {
+            track.enabled = !track.enabled;
+        });
+        
+        this.isAudioMuted = !this.isAudioMuted;
+        const icon = document.querySelector('#toggleAudio i');
+        icon.className = this.isAudioMuted ? 'fas fa-microphone-slash' : 'fas fa-microphone';
+        
+        // Update button style
+        const button = document.getElementById('toggleAudio');
+        button.classList.toggle('bg-red-500', this.isAudioMuted);
+        button.classList.toggle('bg-gray-700', !this.isAudioMuted);
+    }
+    
+    toggleVideo() {
+        const videoTracks = this.localStream.getVideoTracks();
+        videoTracks.forEach(track => {
+            track.enabled = !track.enabled;
+        });
+        
+        this.isVideoOff = !this.isVideoOff;
+        const icon = document.querySelector('#toggleVideo i');
+        icon.className = this.isVideoOff ? 'fas fa-video-slash' : 'fas fa-video';
+        
+        // Update button style
+        const button = document.getElementById('toggleVideo');
+        button.classList.toggle('bg-red-500', this.isVideoOff);
+        button.classList.toggle('bg-gray-700', !this.isVideoOff);
+    }
+    
+    async toggleScreenShare() {
+        try {
+            if (!this.isScreenSharing) {
+                this.screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                    audio: true
+                });
+                
+                // Replace video track in local stream
+                const videoTrack = this.screenStream.getVideoTracks()[0];
+                const sender = this.getVideoSender();
+                if (sender) {
+                    await sender.replaceTrack(videoTrack);
+                }
+                
+                // Update local video
+                document.getElementById('localVideo').srcObject = this.screenStream;
+                
+                this.isScreenSharing = true;
+                
+                // Listen for when user stops screen share
+                videoTrack.onended = () => {
+                    this.stopScreenShare();
+                };
+                
+            } else {
+                await this.stopScreenShare();
+            }
+            
+            this.updateScreenShareButton();
+            
+        } catch (error) {
+            console.error('Error sharing screen:', error);
+        }
+    }
+    
+    async stopScreenShare() {
+        if (this.screenStream) {
+            this.screenStream.getTracks().forEach(track => track.stop());
+            
+            // Switch back to camera
+            const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const videoTrack = cameraStream.getVideoTracks()[0];
+            
+            const sender = this.getVideoSender();
+            if (sender) {
+                await sender.replaceTrack(videoTrack);
+            }
+            
+            document.getElementById('localVideo').srcObject = this.localStream;
+            this.isScreenSharing = false;
+            this.updateScreenShareButton();
+        }
+    }
+    
+    updateScreenShareButton() {
+        const button = document.getElementById('toggleScreenShare');
+        const icon = document.querySelector('#toggleScreenShare i');
+        
+        if (this.isScreenSharing) {
+            button.classList.add('bg-green-500');
+            button.classList.remove('bg-bitget-primary');
+            icon.className = 'fas fa-stop';
+        } else {
+            button.classList.remove('bg-green-500');
+            button.classList.add('bg-bitget-primary');
+            icon.className = 'fas fa-desktop';
+        }
+    }
+    
+    getVideoSender() {
+        // This would be implemented based on your WebRTC signaling
+        return null;
+    }
+    
+    leaveCall() {
+        // Stop all tracks
+        if (this.localStream) {
+            this.localStream.getTracks().forEach(track => track.stop());
+        }
+        
+        if (this.screenStream) {
+            this.screenStream.getTracks().forEach(track => track.stop());
+        }
+        
+        // Close peer connections
+        this.peerConnections.forEach(pc => pc.close());
+        
+        // Redirect to dashboard
+        window.location.href = "{% url 'leave_video_call' room.room_id %}";
+    }
+}
+
+// Initialize video call when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        window.videoCallManager = new VideoCallManager();
+    } else {
+        alert('Your browser does not support video calls. Please use a modern browser.');
+    }
+});
+</script>
+{% endblock %}
