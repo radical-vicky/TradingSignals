@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User  # ADD THIS IMPORT
 from django.contrib import messages
 from django.http import JsonResponse
 from django.db import OperationalError, IntegrityError
@@ -67,8 +68,6 @@ def home(request):
             'active_video_calls': []
         }
         return render(request, 'dashboard/home.html', context)
-
-
 @login_required
 def profile(request):
     try:
@@ -90,14 +89,37 @@ def profile(request):
         
         video_call_rooms = VideoCallRoom.objects.filter(created_by=request.user, is_active=True).order_by('-created_at')[:5]
         
+        # Initialize forms
+        form = EnhancedUserProfileForm(instance=user_profile)
+        picture_form = ProfilePictureForm(instance=user_profile)
+        
         if request.method == 'POST':
+            print("POST request received")  # Debug
+            print("FILES:", request.FILES)  # Debug
+            print("POST data:", request.POST)  # Debug
+            
             if 'profile_picture' in request.FILES:
-                form = ProfilePictureForm(request.POST, request.FILES, instance=user_profile)
-                if form.is_valid():
-                    form.save()
-                    messages.success(request, 'Profile picture updated successfully!')
-                    return redirect('profile')
+                print("Profile picture found in FILES")  # Debug
+                picture_form = ProfilePictureForm(request.POST, request.FILES, instance=user_profile)
+                print("Picture form is valid:", picture_form.is_valid())  # Debug
+                print("Picture form errors:", picture_form.errors)  # Debug
+                
+                if picture_form.is_valid():
+                    try:
+                        picture_form.save()
+                        messages.success(request, 'Profile picture updated successfully!')
+                        return redirect('profile')
+                    except Exception as e:
+                        messages.error(request, f'Error saving profile picture: {str(e)}')
+                else:
+                    # Show specific form errors
+                    for field, errors in picture_form.errors.items():
+                        for error in errors:
+                            messages.error(request, f'Picture upload error: {error}')
+                    # Keep the main form
+                    form = EnhancedUserProfileForm(instance=user_profile)
             else:
+                # Handle main profile form
                 form = EnhancedUserProfileForm(request.POST, instance=user_profile)
                 if form.is_valid():
                     form.save()
@@ -122,9 +144,9 @@ def profile(request):
                     
                     messages.success(request, 'Profile updated successfully!')
                     return redirect('profile')
-        else:
-            form = EnhancedUserProfileForm(instance=user_profile)
-            picture_form = ProfilePictureForm(instance=user_profile)
+                else:
+                    # Keep the picture form if main form is invalid
+                    picture_form = ProfilePictureForm(instance=user_profile)
         
         purchased_signals = SignalPurchase.objects.filter(
             user=request.user, 
@@ -152,8 +174,7 @@ def profile(request):
     except OperationalError:
         messages.error(request, 'Database not ready. Please run migrations first.')
         return redirect('home')
-
-
+    
 @login_required
 def create_video_call(request):
     try:
@@ -382,6 +403,7 @@ def purchase_signal(request, signal_id):
     try:
         signal = get_object_or_404(Signal, id=signal_id)
         
+        # Check if already purchased
         existing_purchase = SignalPurchase.objects.filter(
             user=request.user, 
             signal=signal,
@@ -396,21 +418,28 @@ def purchase_signal(request, signal_id):
             form = SignalPurchaseForm(request.POST)
             if form.is_valid():
                 payment_method = form.cleaned_data['payment_method']
-                amount = signal.price
+                print(f"Selected payment method: {payment_method}")  # Debug
                 
+                # Create payment transaction
                 transaction = PaymentTransaction.objects.create(
                     user=request.user,
                     signal=signal,
                     payment_method=payment_method,
-                    amount=amount,
+                    amount=signal.price,
                     status='PENDING'
                 )
                 
+                # Redirect to appropriate payment gateway
                 if payment_method == 'MPESA':
                     return redirect('initiate_mpesa_payment', transaction_id=transaction.id)
                 elif payment_method == 'PAYPAL':
                     return redirect('initiate_paypal_payment', transaction_id=transaction.id)
-                    
+                else:
+                    messages.error(request, 'Invalid payment method selected.')
+            else:
+                # Form validation failed
+                messages.error(request, 'Please select a payment method.')
+                print("Form errors:", form.errors)  # Debug
         else:
             form = SignalPurchaseForm()
         
@@ -432,6 +461,72 @@ def purchase_signal(request, signal_id):
 
 
 @login_required
+def process_mpesa_payment(request, signal_id):
+    """Process M-Pesa payment for signal purchase"""
+    try:
+        signal = get_object_or_404(Signal, id=signal_id)
+        
+        # Check if already purchased
+        existing_purchase = SignalPurchase.objects.filter(
+            user=request.user, 
+            signal=signal,
+            status='COMPLETED'
+        ).first()
+        
+        if existing_purchase:
+            messages.info(request, 'You have already purchased this signal!')
+            return redirect('signal_detail', signal_id=signal_id)
+        
+        # Create payment transaction
+        transaction = PaymentTransaction.objects.create(
+            user=request.user,
+            signal=signal,
+            payment_method='MPESA',
+            amount=signal.price,
+            status='PENDING'
+        )
+        
+        return redirect('initiate_mpesa_payment', transaction_id=transaction.id)
+    
+    except Exception as e:
+        messages.error(request, f'Error processing payment: {str(e)}')
+        return redirect('purchase_signal', signal_id=signal_id)
+
+
+@login_required
+def process_paypal_payment(request, signal_id):
+    """Process PayPal payment for signal purchase"""
+    try:
+        signal = get_object_or_404(Signal, id=signal_id)
+        
+        # Check if already purchased
+        existing_purchase = SignalPurchase.objects.filter(
+            user=request.user, 
+            signal=signal,
+            status='COMPLETED'
+        ).first()
+        
+        if existing_purchase:
+            messages.info(request, 'You have already purchased this signal!')
+            return redirect('signal_detail', signal_id=signal_id)
+        
+        # Create payment transaction
+        transaction = PaymentTransaction.objects.create(
+            user=request.user,
+            signal=signal,
+            payment_method='PAYPAL',
+            amount=signal.price,
+            status='PENDING'
+        )
+        
+        return redirect('initiate_paypal_payment', transaction_id=transaction.id)
+    
+    except Exception as e:
+        messages.error(request, f'Error processing payment: {str(e)}')
+        return redirect('purchase_signal', signal_id=signal_id)
+
+
+@login_required
 def initiate_mpesa_payment(request, transaction_id):
     try:
         transaction = get_object_or_404(PaymentTransaction, id=transaction_id, user=request.user)
@@ -443,6 +538,7 @@ def initiate_mpesa_payment(request, transaction_id):
                 messages.error(request, 'Please provide your M-Pesa phone number')
                 return render(request, 'dashboard/mpesa_payment.html', {'transaction': transaction})
             
+            # Format phone number
             if phone_number.startswith('0'):
                 phone_number = '254' + phone_number[1:]
             elif phone_number.startswith('+'):
@@ -571,6 +667,7 @@ def paypal_payment_cancel(request, transaction_id):
 def payment_status(request, transaction_id):
     transaction = get_object_or_404(PaymentTransaction, id=transaction_id, user=request.user)
     
+    # Auto-complete M-Pesa payments after 30 seconds (for testing)
     if (transaction.payment_method == 'MPESA' and 
         transaction.status == 'PENDING' and
         transaction.created_at and
@@ -605,6 +702,7 @@ def payment_status(request, transaction_id):
             notification_type='SUCCESS'
         )
     
+    # Ensure signal purchase exists for completed transactions
     if transaction.status == 'COMPLETED':
         has_access = SignalPurchase.objects.filter(
             user=request.user,
@@ -1303,13 +1401,3 @@ def mpesa_callback(request):
             return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Failed'})
     
     return JsonResponse({'error': 'Method not allowed'}, status=405)
-
-
-@login_required
-def process_mpesa_payment(request, signal_id):
-    return initiate_mpesa_payment(request, signal_id)
-
-
-@login_required
-def process_paypal_payment(request, signal_id):
-    return initiate_paypal_payment(request, signal_id)

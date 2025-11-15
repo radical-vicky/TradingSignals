@@ -11,6 +11,20 @@
         <p class="text-gray-400 text-sm sm:text-base">Manage your account settings and view your purchased signals</p>
     </div>
 
+    <!-- Messages Display -->
+    {% if messages %}
+    <div class="mb-6">
+        {% for message in messages %}
+        <div class="{% if message.tags == 'error' %}bg-red-900 border-red-700{% else %}bg-green-900 border-green-700{% endif %} border rounded-lg p-4 mb-3">
+            <div class="flex items-center">
+                <i class="fas {% if message.tags == 'error' %}fa-exclamation-circle text-red-400{% else %}fa-check-circle text-green-400{% endif %} mr-3"></i>
+                <span class="text-white">{{ message }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- Trader Status Banner -->
     {% if user.userprofile.is_trader %}
     <div class="bg-gradient-to-r from-green-500/20 to-emerald-600/20 border border-green-500/30 rounded-2xl p-6 mb-6 sm:mb-8">
@@ -65,7 +79,7 @@
                 <div class="flex flex-col sm:flex-row items-center mb-6 sm:mb-8">
                     <div class="relative mb-4 sm:mb-0 sm:mr-6">
                         <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gray-800 border-2 border-bitget-primary flex items-center justify-center">
-                            {% if user.userprofile.profile_picture %}
+                            {% if user.userprofile.profile_picture and user.userprofile.profile_picture.url %}
                                 <img id="profile-preview" src="{{ user.userprofile.profile_picture.url }}" alt="Profile Picture" class="w-full h-full object-cover">
                             {% else %}
                                 <div id="profile-preview" class="w-full h-full flex items-center justify-center bg-gray-700">
@@ -76,7 +90,11 @@
                         <label for="profile-picture-input" class="absolute bottom-0 right-0 bg-bitget-primary text-white p-2 rounded-full cursor-pointer hover:bg-teal-600 transition duration-200">
                             <i class="fas fa-camera text-sm"></i>
                         </label>
-                        <input type="file" id="profile-picture-input" name="profile_picture" accept="image/*" class="hidden">
+                        <!-- Separate form for profile picture upload -->
+                        <form id="picture-form" method="POST" enctype="multipart/form-data" class="hidden">
+                            {% csrf_token %}
+                            <input type="file" id="profile-picture-input" name="profile_picture" accept="image/*">
+                        </form>
                     </div>
                     <div class="text-center sm:text-left">
                         <h3 class="text-lg sm:text-xl font-bold text-white">{{ user.username }}</h3>
@@ -95,7 +113,8 @@
                     </div>
                 </div>
                 
-                <form method="POST" id="profile-form" enctype="multipart/form-data">
+                <!-- Main Profile Form -->
+                <form method="POST" id="profile-form">
                     {% csrf_token %}
                     
                     {% if form.non_field_errors %}
@@ -139,7 +158,7 @@
                             <input type="text" 
                                    name="mpesa_number" 
                                    id="id_mpesa_number"
-                                   value="{{ user.userprofile.mpesa_number|default:'' }}"
+                                   value="{{ form.mpesa_number.value|default:user.userprofile.mpesa_number|default:'' }}"
                                    class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200"
                                    placeholder="2547XXXXXXXX">
                             {% if form.mpesa_number.errors %}
@@ -155,13 +174,111 @@
                             <input type="email" 
                                    name="paypal_email" 
                                    id="id_paypal_email"
-                                   value="{{ user.userprofile.paypal_email|default:'' }}"
+                                   value="{{ form.paypal_email.value|default:user.userprofile.paypal_email|default:'' }}"
                                    class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200"
                                    placeholder="your-email@example.com">
                             {% if form.paypal_email.errors %}
                                 <div class="text-red-400 text-sm mt-1">{{ form.paypal_email.errors }}</div>
                             {% endif %}
                         </div>
+
+                        <!-- Phone Number -->
+                        <div>
+                            <label for="id_phone_number" class="block text-sm font-medium text-gray-300 mb-2">
+                                Phone Number
+                            </label>
+                            <input type="text" 
+                                   name="phone_number" 
+                                   id="id_phone_number"
+                                   value="{{ form.phone_number.value|default:user.userprofile.phone_number|default:'' }}"
+                                   class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200"
+                                   placeholder="+1234567890">
+                            {% if form.phone_number.errors %}
+                                <div class="text-red-400 text-sm mt-1">{{ form.phone_number.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Country -->
+                        <div>
+                            <label for="id_country" class="block text-sm font-medium text-gray-300 mb-2">
+                                Country
+                            </label>
+                            <input type="text" 
+                                   name="country" 
+                                   id="id_country"
+                                   value="{{ form.country.value|default:user.userprofile.country|default:'' }}"
+                                   class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200"
+                                   placeholder="Your country">
+                            {% if form.country.errors %}
+                                <div class="text-red-400 text-sm mt-1">{{ form.country.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- City -->
+                        <div>
+                            <label for="id_city" class="block text-sm font-medium text-gray-300 mb-2">
+                                City
+                            </label>
+                            <input type="text" 
+                                   name="city" 
+                                   id="id_city"
+                                   value="{{ form.city.value|default:user.userprofile.city|default:'' }}"
+                                   class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200"
+                                   placeholder="Your city">
+                            {% if form.city.errors %}
+                                <div class="text-red-400 text-sm mt-1">{{ form.city.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Date of Birth -->
+                        <div>
+                            <label for="id_date_of_birth" class="block text-sm font-medium text-gray-300 mb-2">
+                                Date of Birth
+                            </label>
+                            <input type="date" 
+                                   name="date_of_birth" 
+                                   id="id_date_of_birth"
+                                   value="{{ form.date_of_birth.value|default:user.userprofile.date_of_birth|date:'Y-m-d'|default:'' }}"
+                                   class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200">
+                            {% if form.date_of_birth.errors %}
+                                <div class="text-red-400 text-sm mt-1">{{ form.date_of_birth.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Trading Experience -->
+                        <div>
+                            <label for="id_trading_experience" class="block text-sm font-medium text-gray-300 mb-2">
+                                Trading Experience
+                            </label>
+                            <select name="trading_experience" 
+                                    id="id_trading_experience"
+                                    class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200">
+                                <option value="">Select your experience level</option>
+                                {% for value, label in form.trading_experience.field.choices %}
+                                    <option value="{{ value }}" {% if form.trading_experience.value == value or user.userprofile.trading_experience == value %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            {% if form.trading_experience.errors %}
+                                <div class="text-red-400 text-sm mt-1">{{ form.trading_experience.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Bio -->
+                    <div class="mt-4">
+                        <label for="id_bio" class="block text-sm font-medium text-gray-300 mb-2">
+                            Bio
+                        </label>
+                        <textarea name="bio" 
+                                  id="id_bio"
+                                  rows="3"
+                                  class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200 resize-none"
+                                  placeholder="Tell us about yourself...">{{ form.bio.value|default:user.userprofile.bio|default:'' }}</textarea>
+                        {% if form.bio.errors %}
+                            <div class="text-red-400 text-sm mt-1">{{ form.bio.errors }}</div>
+                        {% endif %}
                     </div>
 
                     <!-- Trader Application Fields (only show if not already a trader) -->
@@ -177,7 +294,7 @@
                             <input type="text" 
                                    name="trader_experience" 
                                    id="id_trader_experience"
-                                   value="{{ user.userprofile.trader_experience|default:'' }}"
+                                   value="{{ form.trader_experience.value|default:user.userprofile.trader_experience|default:'' }}"
                                    class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200"
                                    placeholder="e.g., 5+ years in Forex Trading">
                             {% if form.trader_experience.errors %}
@@ -193,7 +310,7 @@
                             <input type="text" 
                                    name="trader_specialization" 
                                    id="id_trader_specialization"
-                                   value="{{ user.userprofile.trader_specialization|default:'' }}"
+                                   value="{{ form.trader_specialization.value|default:user.userprofile.trader_specialization|default:'' }}"
                                    class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200"
                                    placeholder="e.g., Forex, Crypto, Stocks, Options">
                             {% if form.trader_specialization.errors %}
@@ -210,7 +327,7 @@
                                       id="id_trader_bio"
                                       rows="4"
                                       class="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-bitget-primary focus:border-transparent transition duration-200 resize-none"
-                                      placeholder="Tell us about your trading experience, strategies, and why you want to become a trader on our platform...">{{ user.userprofile.trader_bio|default:'' }}</textarea>
+                                      placeholder="Tell us about your trading experience, strategies, and why you want to become a trader on our platform...">{{ form.trader_bio.value|default:user.userprofile.trader_bio|default:'' }}</textarea>
                             {% if form.trader_bio.errors %}
                                 <div class="text-red-400 text-sm mt-1">{{ form.trader_bio.errors }}</div>
                             {% endif %}
@@ -221,7 +338,8 @@
                             <input type="checkbox" 
                                    name="apply_as_trader" 
                                    id="id_apply_as_trader"
-                                   class="w-4 h-4 text-bitget-primary bg-gray-800 border-gray-700 rounded focus:ring-bitget-primary focus:ring-2">
+                                   class="w-4 h-4 text-bitget-primary bg-gray-800 border-gray-700 rounded focus:ring-bitget-primary focus:ring-2"
+                                   {% if form.apply_as_trader.value or user.userprofile.trader_application_status == 'PENDING' %}checked{% endif %}>
                             <label for="id_apply_as_trader" class="ml-2 text-sm font-medium text-gray-300">
                                 I want to apply as a trader and host live sessions
                             </label>
@@ -232,7 +350,7 @@
                     <!-- Submit Button -->
                     <div class="mt-6 sm:mt-8">
                         <button type="submit" 
-                                class="w-full btn-primary text-white py-3 px-6 sm:px-8 rounded-lg font-semibold transition duration-200">
+                                class="w-full bg-gradient-to-r from-bitget-primary to-teal-600 hover:from-teal-600 hover:to-bitget-primary text-white py-3 px-6 sm:px-8 rounded-lg font-semibold transition duration-200 transform hover:scale-105">
                             <i class="fas fa-save mr-2"></i>
                             {% if not user.userprofile.is_trader and user.userprofile.trader_application_status != 'PENDING' %}
                                 Update Profile & Apply as Trader
@@ -294,7 +412,7 @@
                         <i class="fas fa-inbox text-3xl sm:text-4xl text-gray-600 mb-3 sm:mb-4"></i>
                         <p class="text-gray-400 mb-4 text-sm sm:text-base">You haven't purchased any signals yet.</p>
                         <a href="{% url 'signal_list' %}" 
-                           class="btn-primary text-white py-2 px-4 sm:px-6 rounded-lg font-semibold transition duration-200 inline-block text-sm sm:text-base">
+                           class="bg-gradient-to-r from-bitget-primary to-teal-600 hover:from-teal-600 hover:to-bitget-primary text-white py-2 px-4 sm:px-6 rounded-lg font-semibold transition duration-200 inline-block text-sm sm:text-base transform hover:scale-105">
                             <i class="fas fa-shopping-cart mr-2"></i>Browse Signals
                         </a>
                     </div>
@@ -307,7 +425,7 @@
                 <div class="space-y-3">
                     <div class="flex justify-between items-center">
                         <span class="text-gray-400 text-sm sm:text-base">Signals Purchased:</span>
-                        <span class="text-white font-semibold text-sm sm:text-base">{{ purchased_signals|length }}</span>
+                        <span class="text-white font-semibold text-sm sm:text-base">{{ purchased_signals_count }}</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-gray-400 text-sm sm:text-base">Member Since:</span>
@@ -347,9 +465,9 @@
 </div>
 
 <!-- Profile Picture Upload Modal -->
-<div id="upload-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
-    <div class="bg-bitget-card rounded-2xl p-6 max-w-md w-full mx-4">
-        <h3 class="text-xl font-bold text-white mb-4">Upload Profile Picture</h3>
+<div id="upload-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden backdrop-blur-sm">
+    <div class="bg-bitget-card rounded-2xl p-6 max-w-md w-full mx-4 border border-gray-700">
+        <h3 class="text-xl font-bold text-white mb-4">Update Profile Picture</h3>
         <div class="mb-4">
             <div class="w-32 h-32 mx-auto rounded-full overflow-hidden bg-gray-800 border-2 border-bitget-primary flex items-center justify-center">
                 <img id="modal-preview" src="" alt="Preview" class="w-full h-full object-cover hidden">
@@ -359,11 +477,11 @@
             </div>
         </div>
         <div class="flex justify-between space-x-4">
-            <button id="cancel-upload" class="flex-1 bg-gray-700 text-white py-2 px-4 rounded-lg font-semibold transition duration-200 hover:bg-gray-600">
+            <button id="cancel-upload" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300">
                 Cancel
             </button>
-            <button id="confirm-upload" class="flex-1 btn-primary text-white py-2 px-4 rounded-lg font-semibold transition duration-200">
-                Upload
+            <button id="confirm-upload" class="flex-1 bg-gradient-to-r from-bitget-primary to-teal-600 hover:from-teal-600 hover:to-bitget-primary text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300">
+                Upload Picture
             </button>
         </div>
     </div>
@@ -381,17 +499,15 @@ function scrollToTraderSection() {
 {% endblock %}
 
 {% block extra_js %}
-<!-- Keep your existing JavaScript for profile picture upload -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const profilePictureInput = document.getElementById('profile-picture-input');
-    const profilePreview = document.getElementById('profile-preview');
     const uploadModal = document.getElementById('upload-modal');
     const modalPreview = document.getElementById('modal-preview');
     const modalPlaceholder = document.getElementById('modal-placeholder');
     const cancelUpload = document.getElementById('cancel-upload');
     const confirmUpload = document.getElementById('confirm-upload');
-    const profileForm = document.getElementById('profile-form');
+    const pictureForm = document.getElementById('picture-form');
     
     let selectedFile = null;
     
@@ -424,16 +540,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Confirm upload
     confirmUpload.addEventListener('click', function() {
         if (selectedFile) {
-            // Update preview on profile page
-            profilePreview.innerHTML = '';
-            const img = document.createElement('img');
-            img.src = modalPreview.src;
-            img.alt = 'Profile Picture';
-            img.className = 'w-full h-full object-cover';
-            profilePreview.appendChild(img);
-            
-            // Create a FormData object and append the file
-            const formData = new FormData(profileForm);
+            // Create FormData and submit the picture form
+            const formData = new FormData(pictureForm);
             formData.append('profile_picture', selectedFile);
             
             // Submit the form via AJAX
@@ -441,21 +549,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
                 },
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Success message or redirect
+            .then(response => {
+                if (response.ok) {
                     window.location.reload();
                 } else {
-                    alert('Error uploading profile picture');
+                    alert('Error uploading profile picture. Please try again.');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Error uploading profile picture');
+                alert('Error uploading profile picture. Please try again.');
             });
             
             // Hide modal

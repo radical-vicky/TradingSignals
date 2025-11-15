@@ -158,17 +158,25 @@ class EnhancedUserProfileForm(forms.ModelForm):
             instance.save()
         return instance
 
-
 class ProfilePictureForm(forms.ModelForm):
     class Meta:
         model = UserProfile
         fields = ['profile_picture']
-        widgets = {
-            'profile_picture': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'image/*'
-            })
-        }
+    
+    def clean_profile_picture(self):
+        picture = self.cleaned_data.get('profile_picture')
+        if picture:
+            # Check file size (max 5MB)
+            if picture.size > 5 * 1024 * 1024:
+                raise forms.ValidationError("Image file too large ( > 5MB )")
+            
+            # Check file extension
+            valid_extensions = ['jpg', 'jpeg', 'png', 'gif']
+            extension = picture.name.split('.')[-1].lower()
+            if extension not in valid_extensions:
+                raise forms.ValidationError("Unsupported file extension. Supported: JPG, JPEG, PNG, GIF")
+        
+        return picture
 
 
 class VideoCallRoomForm(forms.ModelForm):
@@ -212,86 +220,18 @@ class VideoCallRoomForm(forms.ModelForm):
         return max_participants
 
 
-class SignalPurchaseForm(forms.ModelForm):
-    PAYMENT_METHOD_CHOICES = [
+class SignalPurchaseForm(forms.Form):
+    PAYMENT_METHODS = [
         ('MPESA', 'M-Pesa'),
         ('PAYPAL', 'PayPal'),
     ]
     
     payment_method = forms.ChoiceField(
-        choices=PAYMENT_METHOD_CHOICES,
-        widget=forms.RadioSelect(attrs={'class': 'payment-method-radio'}),
-        required=True
-    )
-    
-    phone_number = forms.CharField(
-        max_length=15,
-        required=False,
-        widget=forms.TextInput(attrs={
-            'placeholder': '254712345678',
-            'class': 'form-control mpesa-field'
-        }),
-        help_text="Required for M-Pesa payments"
-    )
-    
-    agree_terms = forms.BooleanField(
+        choices=PAYMENT_METHODS,
+        widget=forms.RadioSelect(attrs={'class': 'payment-option'}),
         required=True,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        label="I agree to the terms and conditions"
+        error_messages={'required': 'Please select a payment method'}
     )
-
-    class Meta:
-        model = SignalPurchase
-        fields = ['payment_method']
-    
-    def __init__(self, *args, **kwargs):
-        self.signal = kwargs.pop('signal', None)
-        self.user = kwargs.pop('user', None)
-        super().__init__(*args, **kwargs)
-        
-        if self.signal:
-            self.fields['amount'] = forms.DecimalField(
-                initial=self.signal.price,
-                disabled=True,
-                widget=forms.NumberInput(attrs={
-                    'class': 'form-control',
-                    'readonly': 'readonly'
-                })
-            )
-    
-    def clean(self):
-        cleaned_data = super().clean()
-        payment_method = cleaned_data.get('payment_method')
-        phone_number = cleaned_data.get('phone_number')
-        
-        if payment_method == 'MPESA' and not phone_number:
-            raise forms.ValidationError({
-                'phone_number': 'Phone number is required for M-Pesa payments'
-            })
-        
-        if payment_method == 'MPESA' and phone_number:
-            if not phone_number.startswith('254'):
-                raise forms.ValidationError({
-                    'phone_number': 'Phone number should start with 254'
-                })
-            if len(phone_number) != 12:
-                raise forms.ValidationError({
-                    'phone_number': 'Phone number should be 12 digits (including 254)'
-                })
-        
-        return cleaned_data
-    
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        instance.user = self.user
-        instance.signal = self.signal
-        instance.amount = self.signal.price
-        
-        if commit:
-            instance.save()
-        return instance
-
-
 class PaymentTransactionForm(forms.ModelForm):
     class Meta:
         model = PaymentTransaction

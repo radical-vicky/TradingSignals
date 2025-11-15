@@ -92,6 +92,10 @@ class PaymentTransaction(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.payment_method} - ${self.amount}"
 
+
+
+
+
 class UserProfile(models.Model):
     TRADER_STATUS_CHOICES = [
         ('NOT_APPLIED', 'Not Applied'),
@@ -107,8 +111,13 @@ class UserProfile(models.Model):
         ('PROFESSIONAL', 'Professional (5+ years)'),
     ]
     
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='userprofile')
+    profile_picture = models.ImageField(
+        upload_to='profile_pics/',
+        null=True, 
+        blank=True,
+        default='profile_pics/default.png'
+    )
     mpesa_number = models.CharField(max_length=15, blank=True, default='')
     paypal_email = models.EmailField(blank=True, default='')
     
@@ -117,7 +126,12 @@ class UserProfile(models.Model):
     country = models.CharField(max_length=100, blank=True, null=True)
     city = models.CharField(max_length=100, blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
-    bio = models.TextField(blank=True, null=True, help_text="Brief introduction about yourself")
+    bio = models.TextField(
+        blank=True, 
+        null=True, 
+        max_length=500,
+        help_text="Brief introduction about yourself (max 500 characters)"
+    )
     
     # Social media links
     twitter_url = models.URLField(blank=True, null=True)
@@ -125,8 +139,18 @@ class UserProfile(models.Model):
     youtube_url = models.URLField(blank=True, null=True)
     
     # Trading preferences
-    preferred_markets = models.CharField(max_length=200, blank=True, null=True, help_text="Preferred trading markets")
-    trading_experience = models.CharField(max_length=50, blank=True, null=True, choices=TRADING_EXPERIENCE_CHOICES)
+    preferred_markets = models.CharField(
+        max_length=200, 
+        blank=True, 
+        null=True, 
+        help_text="Preferred trading markets (e.g., Forex, Crypto, Stocks)"
+    )
+    trading_experience = models.CharField(
+        max_length=50, 
+        blank=True, 
+        null=True, 
+        choices=TRADING_EXPERIENCE_CHOICES
+    )
     
     # Privacy settings
     show_email = models.BooleanField(default=False)
@@ -134,11 +158,15 @@ class UserProfile(models.Model):
     show_trading_stats = models.BooleanField(default=True)
     
     # Statistics
-    total_trades = models.IntegerField(default=0)
-    successful_trades = models.IntegerField(default=0)
-    total_profit = models.DecimalField(max_digits=15, decimal_places=2, default=0)
-    follower_count = models.IntegerField(default=0)
-    following_count = models.IntegerField(default=0)
+    total_trades = models.PositiveIntegerField(default=0)
+    successful_trades = models.PositiveIntegerField(default=0)
+    total_profit = models.DecimalField(
+        max_digits=15, 
+        decimal_places=2, 
+        default=0.00
+    )
+    follower_count = models.PositiveIntegerField(default=0)
+    following_count = models.PositiveIntegerField(default=0)
     
     # Verification
     is_verified = models.BooleanField(default=False)
@@ -147,10 +175,16 @@ class UserProfile(models.Model):
     # Video call settings
     video_call_enabled = models.BooleanField(default=True)
     screen_sharing_enabled = models.BooleanField(default=True)
-    max_participants = models.IntegerField(default=10, help_text="Maximum participants for video calls")
+    max_participants = models.PositiveIntegerField(
+        default=10, 
+        help_text="Maximum participants for video calls"
+    )
     
     # Trader fields
-    is_trader = models.BooleanField(default=False, help_text="Designates if this user is a trader who can host live sessions")
+    is_trader = models.BooleanField(
+        default=False, 
+        help_text="Designates if this user is a trader who can host live sessions"
+    )
     trader_application_status = models.CharField(
         max_length=20, 
         choices=TRADER_STATUS_CHOICES, 
@@ -158,30 +192,192 @@ class UserProfile(models.Model):
     )
     trader_application_date = models.DateTimeField(null=True, blank=True)
     trader_approval_date = models.DateTimeField(null=True, blank=True)
-    trader_application_feedback = models.TextField(blank=True, null=True, help_text="Feedback for rejected applications")
+    trader_application_feedback = models.TextField(
+        blank=True, 
+        null=True, 
+        help_text="Feedback for rejected applications"
+    )
     
-    trader_bio = models.TextField(blank=True, null=True, help_text="Trader's biography and expertise")
-    trader_experience = models.CharField(max_length=100, blank=True, null=True, help_text="e.g., 5+ years in Forex")
-    trader_specialization = models.CharField(max_length=200, blank=True, null=True, help_text="e.g., Forex, Crypto, Stocks")
+    trader_bio = models.TextField(
+        blank=True, 
+        null=True, 
+        max_length=1000,
+        help_text="Trader's biography and expertise (max 1000 characters)"
+    )
+    trader_experience = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        help_text="e.g., 5+ years in Forex Trading"
+    )
+    trader_specialization = models.CharField(
+        max_length=200, 
+        blank=True, 
+        null=True, 
+        help_text="e.g., Forex, Crypto, Stocks, Options"
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'frontend_userprofile'
+        verbose_name = 'User Profile'
+        verbose_name_plural = 'User Profiles'
+        ordering = ['-created_at']
     
     def __str__(self):
         return f"{self.user.username}'s Profile"
     
+    def clean(self):
+        """Custom validation"""
+        super().clean()
+        
+        # Validate date of birth
+        if self.date_of_birth:
+            if self.date_of_birth > timezone.now().date():
+                raise ValidationError({'date_of_birth': 'Date of birth cannot be in the future.'})
+            
+            # Check if user is at least 18 years old
+            age = (timezone.now().date() - self.date_of_birth).days // 365
+            if age < 18:
+                raise ValidationError({'date_of_birth': 'You must be at least 18 years old.'})
+        
+        # Validate trader fields if applying as trader
+        if self.trader_application_status in ['PENDING', 'APPROVED']:
+            if not self.trader_experience:
+                raise ValidationError({
+                    'trader_experience': 'Trading experience is required for trader applications.'
+                })
+            if not self.trader_specialization:
+                raise ValidationError({
+                    'trader_specialization': 'Trading specialization is required for trader applications.'
+                })
+    
+    def save(self, *args, **kwargs):
+        """Custom save method to handle profile picture and trader status"""
+        
+        # Handle profile picture deletion when updating
+        if self.pk:
+            try:
+                old_profile = UserProfile.objects.get(pk=self.pk)
+                if (old_profile.profile_picture and 
+                    self.profile_picture != old_profile.profile_picture and
+                    old_profile.profile_picture.name != 'profile_pics/default.png'):
+                    # Delete old profile picture file
+                    if os.path.isfile(old_profile.profile_picture.path):
+                        os.remove(old_profile.profile_picture.path)
+            except UserProfile.DoesNotExist:
+                pass
+        
+        # Set trader application date when status changes to PENDING
+        if (self.trader_application_status == 'PENDING' and 
+            self._state.adding or 
+            (self.pk and 
+             UserProfile.objects.get(pk=self.pk).trader_application_status != 'PENDING')):
+            self.trader_application_date = timezone.now()
+        
+        # Set approval date when status changes to APPROVED
+        if (self.trader_application_status == 'APPROVED' and 
+            self.pk and 
+            UserProfile.objects.get(pk=self.pk).trader_application_status != 'APPROVED'):
+            self.trader_approval_date = timezone.now()
+            self.is_trader = True
+        
+        # Set is_trader to False if rejected
+        if (self.trader_application_status == 'REJECTED' and 
+            self.pk and 
+            UserProfile.objects.get(pk=self.pk).trader_application_status != 'REJECTED'):
+            self.is_trader = False
+        
+        self.full_clean()  # Run validation before saving
+        super().save(*args, **kwargs)
+    
     def get_success_rate(self):
         """Calculate trading success rate"""
         if self.total_trades > 0:
-            return (self.successful_trades / self.total_trades) * 100
-        return 0
+            return round((self.successful_trades / self.total_trades) * 100, 2)
+        return 0.00
+    
+    def get_average_profit(self):
+        """Calculate average profit per trade"""
+        if self.total_trades > 0:
+            return round(float(self.total_profit) / self.total_trades, 2)
+        return 0.00
     
     def can_host_video_calls(self):
         """Check if user can host video calls"""
         return self.video_call_enabled and (self.is_trader or self.follower_count >= 10)
+    
+    def can_create_live_sessions(self):
+        """Check if user can create live sessions"""
+        return self.is_trader
+    
+    def apply_as_trader(self, experience, specialization, trader_bio=""):
+        """Apply to become a trader"""
+        if self.trader_application_status != 'NOT_APPLIED':
+            raise ValidationError("You have already applied or are already a trader.")
+        
+        if not experience or not specialization:
+            raise ValidationError("Trading experience and specialization are required.")
+        
+        self.trader_experience = experience
+        self.trader_specialization = specialization
+        self.trader_bio = trader_bio
+        self.trader_application_status = 'PENDING'
+        self.save()
+    
+    def approve_trader_application(self, feedback=""):
+        """Approve trader application"""
+        if self.trader_application_status != 'PENDING':
+            raise ValidationError("Can only approve pending applications.")
+        
+        self.trader_application_status = 'APPROVED'
+        self.is_trader = True
+        self.trader_application_feedback = feedback
+        self.save()
+    
+    def reject_trader_application(self, feedback):
+        """Reject trader application"""
+        if self.trader_application_status != 'PENDING':
+            raise ValidationError("Can only reject pending applications.")
+        
+        if not feedback:
+            raise ValidationError("Feedback is required when rejecting an application.")
+        
+        self.trader_application_status = 'REJECTED'
+        self.is_trader = False
+        self.trader_application_feedback = feedback
+        self.save()
+    
+    @property
+    def display_name(self):
+        """Get display name (full name or username)"""
+        if self.user.get_full_name():
+            return self.user.get_full_name()
+        return self.user.username
+    
+    @property
+    def age(self):
+        """Calculate age from date of birth"""
+        if self.date_of_birth:
+            today = timezone.now().date()
+            return today.year - self.date_of_birth.year - (
+                (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
+            )
+        return None
+    
+    @property
+    def is_eligible_for_trader(self):
+        """Check if user is eligible to apply as trader"""
+        return (
+            self.trader_application_status == 'NOT_APPLIED' and
+            self.total_trades >= 10 and
+            self.get_success_rate() >= 60 and
+            self.follower_count >= 5
+        )
+
+
 
 class VideoCallRoom(models.Model):
     ROOM_TYPES = [
