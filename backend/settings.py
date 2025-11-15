@@ -26,9 +26,12 @@ SECRET_KEY = 'django-insecure-c5clr-73^v2!-k0=uu^4$)_fo2&7#wg5%k#boiu-qlk#_b$^y=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
-
+ALLOWED_HOSTS = [
+    'tradingsignals-1-43ds.onrender.com',
+    'localhost',
+    '127.0.0.1',
+    '.onrender.com',  # This will allow all subdomains of onrender.com
+]
 # Application definition
 
 INSTALLED_APPS = [
